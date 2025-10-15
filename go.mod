@@ -1,4 +1,4 @@
-module connectwithawalsh.com/dns-scheduler
+module dns-scheduler
 
 go 1.22
 
