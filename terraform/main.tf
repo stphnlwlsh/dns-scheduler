@@ -26,22 +26,7 @@ variable "nextdns_api_key" {
   sensitive   = true
 }
 
-# Create a ZIP file of the source code
-data "archive_file" "source" {
-  type        = "zip"
-  source_dir  = "../"
-  output_path = "./dns-scheduler.zip"
-  excludes = [
-    "terraform/",
-    ".git/",
-    "README.md",
-    ".gitignore",
-    "credential-config.json",
-    ".gitlab-ci.yml"
-  ]
-}
-
-# Create archive manually with better error handling
+# Create archive manually
 resource "null_resource" "create_archive" {
   triggers = {
     # Recreate if any source files change
@@ -56,7 +41,7 @@ resource "null_resource" "create_archive" {
       # Remove existing zip if it exists
       rm -f terraform/dns-scheduler.zip
       # Create new zip with Go source files and dependencies
-      zip -r terraform/dns-scheduler.zip *.go go.mod go.sum -x 'terraform/*' '.git/*'
+      zip -r terraform/dns-scheduler.zip function.go go.mod go.sum -x 'terraform/*' '.git/*'
       echo "Archive created successfully:"
       ls -la terraform/dns-scheduler.zip
     EOT
@@ -125,6 +110,35 @@ resource "google_cloudfunctions2_function" "disable_social_networks" {
   build_config {
     runtime     = "go122"
     entry_point = "DisableSocialNetworks"
+
+    source {
+      storage_source {
+        bucket = google_storage_bucket.function_source.name
+        object = google_storage_bucket_object.source.name
+      }
+    }
+  }
+
+  service_config {
+    max_instance_count = 1
+    available_memory   = "128Mi"
+    timeout_seconds    = 60
+
+    environment_variables = {
+      NEXTDNS_PROFILE_ID = var.nextdns_profile_id
+      NEXTDNS_API_KEY    = var.nextdns_api_key
+    }
+  }
+}
+
+# Cloud Function for toggling social networks blocking
+resource "google_cloudfunctions2_function" "toggle_social_networks" {
+  name     = "dns-scheduler-toggle"
+  location = var.region
+
+  build_config {
+    runtime     = "go122"
+    entry_point = "ToggleSocialNetworks"
 
     source {
       storage_source {
@@ -233,6 +247,11 @@ output "enable_function_url" {
 output "disable_function_url" {
   description = "URL of the disable function"
   value       = google_cloudfunctions2_function.disable_social_networks.service_config[0].uri
+}
+
+output "toggle_function_url" {
+  description = "URL of the toggle function"
+  value       = google_cloudfunctions2_function.toggle_social_networks.service_config[0].uri
 }
 
 output "schedule_summary" {
