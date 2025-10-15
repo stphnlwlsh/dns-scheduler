@@ -199,6 +199,85 @@ func enableSocialNetworksForAllProfiles() error {
 	return nil
 }
 
+// handlePanicURL blocks or unblocks my.nextdns.io in the denylist
+func handlePanicURL(profileID, action string) error {
+	client, err := newNextDNSClientForProfile(profileID)
+	if err != nil {
+		return fmt.Errorf("failed to create NextDNS client: %w", err)
+	}
+
+	panicDomain := "my.nextdns.io"
+
+	if action == "block" {
+		return client.addToDenylist(panicDomain)
+	} else if action == "unblock" {
+		return client.removeFromDenylist(panicDomain)
+	}
+
+	return fmt.Errorf("invalid action: %s", action)
+}
+
+// addToDenylist adds a domain to the NextDNS denylist
+func (c *NextDNSClient) addToDenylist(domain string) error {
+	url := fmt.Sprintf("%s/profiles/%s/denylist", nextDNSAPIURL, c.profileID)
+
+	payload := map[string]string{"id": domain}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create POST request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", c.apiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("NextDNS API POST returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	fmt.Printf("Successfully added %s to denylist\n", domain)
+	return nil
+}
+
+// removeFromDenylist removes a domain from the NextDNS denylist
+func (c *NextDNSClient) removeFromDenylist(domain string) error {
+	url := fmt.Sprintf("%s/profiles/%s/denylist/%s", nextDNSAPIURL, c.profileID, domain)
+
+	req, err := http.NewRequest("DELETE", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create DELETE request: %w", err)
+	}
+
+	req.Header.Set("x-api-key", c.apiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to make request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("NextDNS API DELETE returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	fmt.Printf("Successfully removed %s from denylist\n", domain)
+	return nil
+}
+
 // EnableSocialNetworks is the Cloud Function entry point
 func EnableSocialNetworks(w http.ResponseWriter, r *http.Request) {
 	if err := enableSocialNetworksForAllProfiles(); err != nil {
@@ -329,12 +408,14 @@ func DisableSocialNetworks(w http.ResponseWriter, r *http.Request) {
 
 // ToggleSocialNetworks allows enabling/disabling based on query parameter
 // Supports optional 'profile' parameter to target specific profile, otherwise affects all profiles
+// Also handles panic URL blocking for my.nextdns.io when panic_profile is provided
 func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 	action := r.URL.Query().Get("action")
 	profileID := r.URL.Query().Get("profile")
+	panicProfileID := r.URL.Query().Get("panic_profile")
 	
 	if action == "" {
-		http.Error(w, "Missing 'action' query parameter. Use ?action=enable or ?action=disable&profile=ID (optional)", http.StatusBadRequest)
+		http.Error(w, "Missing 'action' query parameter. Use ?action=enable or ?action=disable&profile=ID (optional)&panic_profile=ID (optional)", http.StatusBadRequest)
 		return
 	}
 
@@ -360,6 +441,15 @@ func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 		}
 		
 		log.Println(message)
+		
+		// Handle panic URL blocking if panic_profile is provided
+		if panicProfileID != "" {
+			if err := handlePanicURL(panicProfileID, "block"); err != nil {
+				log.Printf("Warning: Failed to block panic URL: %v", err)
+				// Don't fail the whole request, just log the warning
+			}
+		}
+		
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(message))
 		
@@ -384,6 +474,15 @@ func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 		}
 		
 		log.Println(message)
+		
+		// Handle panic URL unblocking if panic_profile is provided
+		if panicProfileID != "" {
+			if err := handlePanicURL(panicProfileID, "unblock"); err != nil {
+				log.Printf("Warning: Failed to unblock panic URL: %v", err)
+				// Don't fail the whole request, just log the warning
+			}
+		}
+		
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(message))
 	default:
