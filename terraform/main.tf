@@ -59,7 +59,6 @@ resource "null_resource" "create_archive" {
       zip -r terraform/dns-scheduler.zip *.go go.mod go.sum -x 'terraform/*' '.git/*'
       echo "Archive created successfully:"
       ls -la terraform/dns-scheduler.zip
-      file terraform/dns-scheduler.zip
     EOT
   }
 }
