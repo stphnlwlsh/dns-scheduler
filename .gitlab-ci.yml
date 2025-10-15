@@ -23,7 +23,8 @@ variables:
     # Setup GCP authentication
     - cd terraform
     - echo $OIDC_TOKEN > /tmp/oidc_token
-    - gcloud auth login --brief --cred-file=/tmp/oidc_token --identity-provider=$WORKLOAD_IDENTITY_PROVIDER --service-account=$SERVICE_ACCOUNT_EMAIL
+    - cp ../credential-config.json /tmp/credential-config.json
+    - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/credential-config.json
     - gcloud config set project $GOOGLE_PROJECT_ID
 
 stages:
