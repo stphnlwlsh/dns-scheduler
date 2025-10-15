@@ -43,9 +43,9 @@ data "archive_file" "source" {
 resource "google_storage_bucket" "function_source" {
   name     = "${var.project_id}-dns-scheduler-source"
   location = var.region
-  
+
   uniform_bucket_level_access = true
-  
+
   lifecycle_rule {
     condition {
       age = 30
@@ -71,7 +71,7 @@ resource "google_cloudfunctions2_function" "enable_social_networks" {
   build_config {
     runtime     = "go122"
     entry_point = "EnableSocialNetworks"
-    
+
     source {
       storage_source {
         bucket = google_storage_bucket.function_source.name
@@ -84,7 +84,7 @@ resource "google_cloudfunctions2_function" "enable_social_networks" {
     max_instance_count = 1
     available_memory   = "128Mi"
     timeout_seconds    = 60
-    
+
     environment_variables = {
       NEXTDNS_PROFILE_ID = var.nextdns_profile_id
       NEXTDNS_API_KEY    = var.nextdns_api_key
@@ -100,7 +100,7 @@ resource "google_cloudfunctions2_function" "disable_social_networks" {
   build_config {
     runtime     = "go122"
     entry_point = "DisableSocialNetworks"
-    
+
     source {
       storage_source {
         bucket = google_storage_bucket.function_source.name
@@ -113,7 +113,7 @@ resource "google_cloudfunctions2_function" "disable_social_networks" {
     max_instance_count = 1
     available_memory   = "128Mi"
     timeout_seconds    = 60
-    
+
     environment_variables = {
       NEXTDNS_PROFILE_ID = var.nextdns_profile_id
       NEXTDNS_API_KEY    = var.nextdns_api_key
@@ -125,14 +125,14 @@ resource "google_cloudfunctions2_function" "disable_social_networks" {
 resource "google_cloud_scheduler_job" "enable_social_networks" {
   name             = "dns-scheduler-enable-schedule"
   description      = "Enable social networks blocking at 8:30 PM Central Time"
-  schedule         = "30 20 * * *"  # 8:30 PM daily
+  schedule         = "30 20 * * *" # 8:30 PM daily
   time_zone        = "America/Chicago"
   attempt_deadline = "60s"
 
   http_target {
     http_method = "GET"
     uri         = google_cloudfunctions2_function.enable_social_networks.service_config[0].uri
-    
+
     oidc_token {
       service_account_email = google_service_account.scheduler.email
     }
@@ -143,14 +143,14 @@ resource "google_cloud_scheduler_job" "enable_social_networks" {
 resource "google_cloud_scheduler_job" "disable_social_networks" {
   name             = "dns-scheduler-disable-schedule"
   description      = "Disable social networks blocking at 8:00 AM Central Time"
-  schedule         = "0 8 * * *"   # 8:00 AM daily
+  schedule         = "0 8 * * *" # 8:00 AM daily
   time_zone        = "America/Chicago"
   attempt_deadline = "60s"
 
   http_target {
     http_method = "GET"
     uri         = google_cloudfunctions2_function.disable_social_networks.service_config[0].uri
-    
+
     oidc_token {
       service_account_email = google_service_account.scheduler.email
     }
