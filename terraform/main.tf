@@ -26,6 +26,13 @@ variable "nextdns_api_key" {
   sensitive   = true
 }
 
+variable "nextdns_profile_id_2" {
+  description = "NextDNS Profile ID for second profile (optional)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 # Create archive manually
 resource "null_resource" "create_archive" {
   triggers = {
@@ -96,8 +103,9 @@ resource "google_cloudfunctions2_function" "enable_social_networks" {
     timeout_seconds    = 60
 
     environment_variables = {
-      NEXTDNS_PROFILE_ID = var.nextdns_profile_id
-      NEXTDNS_API_KEY    = var.nextdns_api_key
+      NEXTDNS_PROFILE_ID   = var.nextdns_profile_id
+      NEXTDNS_PROFILE_ID_2 = var.nextdns_profile_id_2
+      NEXTDNS_API_KEY      = var.nextdns_api_key
     }
   }
 }
@@ -125,8 +133,9 @@ resource "google_cloudfunctions2_function" "disable_social_networks" {
     timeout_seconds    = 60
 
     environment_variables = {
-      NEXTDNS_PROFILE_ID = var.nextdns_profile_id
-      NEXTDNS_API_KEY    = var.nextdns_api_key
+      NEXTDNS_PROFILE_ID   = var.nextdns_profile_id
+      NEXTDNS_PROFILE_ID_2 = var.nextdns_profile_id_2
+      NEXTDNS_API_KEY      = var.nextdns_api_key
     }
   }
 }
@@ -155,8 +164,9 @@ resource "google_cloudfunctions2_function" "toggle_social_networks" {
     ingress_settings   = "ALLOW_ALL"
 
     environment_variables = {
-      NEXTDNS_PROFILE_ID = var.nextdns_profile_id
-      NEXTDNS_API_KEY    = var.nextdns_api_key
+      NEXTDNS_PROFILE_ID   = var.nextdns_profile_id
+      NEXTDNS_PROFILE_ID_2 = var.nextdns_profile_id_2
+      NEXTDNS_API_KEY      = var.nextdns_api_key
     }
   }
 }

@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
@@ -46,6 +47,19 @@ func newNextDNSClient() (*NextDNSClient, error) {
 
 	if profileID == "" || apiKey == "" {
 		return nil, fmt.Errorf("NEXTDNS_PROFILE_ID and NEXTDNS_API_KEY environment variables are required")
+	}
+
+	return &NextDNSClient{
+		profileID: profileID,
+		apiKey:    apiKey,
+	}, nil
+}
+
+func newNextDNSClientForProfile(profileID string) (*NextDNSClient, error) {
+	apiKey := os.Getenv("NEXTDNS_API_KEY")
+
+	if profileID == "" || apiKey == "" {
+		return nil, fmt.Errorf("profileID and NEXTDNS_API_KEY are required")
 	}
 
 	return &NextDNSClient{
@@ -151,24 +165,51 @@ func (c *NextDNSClient) enableSocialNetworks() error {
 	return nil
 }
 
-// EnableSocialNetworks is the Cloud Function entry point
-func EnableSocialNetworks(w http.ResponseWriter, r *http.Request) {
-	client, err := newNextDNSClient()
+func enableSocialNetworksForProfile(profileID string) error {
+	client, err := newNextDNSClientForProfile(profileID)
 	if err != nil {
-		log.Printf("Error creating NextDNS client: %v", err)
-		http.Error(w, fmt.Sprintf("Configuration error: %v", err), http.StatusInternalServerError)
-		return
+		return err
+	}
+	return client.enableSocialNetworks()
+}
+
+func enableSocialNetworksForAllProfiles() error {
+	// Get all profile IDs from environment variables
+	profileID1 := os.Getenv("NEXTDNS_PROFILE_ID")
+	profileID2 := os.Getenv("NEXTDNS_PROFILE_ID_2")
+
+	var errors []string
+
+	if profileID1 != "" {
+		if err := enableSocialNetworksForProfile(profileID1); err != nil {
+			errors = append(errors, fmt.Sprintf("Profile %s: %v", profileID1, err))
+		}
 	}
 
-	if err := client.enableSocialNetworks(); err != nil {
+	if profileID2 != "" {
+		if err := enableSocialNetworksForProfile(profileID2); err != nil {
+			errors = append(errors, fmt.Sprintf("Profile %s: %v", profileID2, err))
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("errors occurred: %s", strings.Join(errors, "; "))
+	}
+
+	return nil
+}
+
+// EnableSocialNetworks is the Cloud Function entry point
+func EnableSocialNetworks(w http.ResponseWriter, r *http.Request) {
+	if err := enableSocialNetworksForAllProfiles(); err != nil {
 		log.Printf("Error enabling social networks: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to enable social networks: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	log.Println("Successfully enabled social networks blocking (porn always blocked)")
+	log.Println("Successfully enabled social networks blocking for all profiles (porn always blocked)")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Social networks blocking enabled (porn always blocked)"))
+	w.Write([]byte("Social networks blocking enabled for all profiles (porn always blocked)"))
 }
 
 func (c *NextDNSClient) disableSocialNetworks() error {
@@ -239,60 +280,112 @@ func (c *NextDNSClient) disableSocialNetworks() error {
 	return nil
 }
 
-// DisableSocialNetworks is the Cloud Function entry point
-func DisableSocialNetworks(w http.ResponseWriter, r *http.Request) {
-	client, err := newNextDNSClient()
+func disableSocialNetworksForProfile(profileID string) error {
+	client, err := newNextDNSClientForProfile(profileID)
 	if err != nil {
-		log.Printf("Error creating NextDNS client: %v", err)
-		http.Error(w, fmt.Sprintf("Configuration error: %v", err), http.StatusInternalServerError)
-		return
+		return err
+	}
+	return client.disableSocialNetworks()
+}
+
+func disableSocialNetworksForAllProfiles() error {
+	// Get all profile IDs from environment variables
+	profileID1 := os.Getenv("NEXTDNS_PROFILE_ID")
+	profileID2 := os.Getenv("NEXTDNS_PROFILE_ID_2")
+
+	var errors []string
+
+	if profileID1 != "" {
+		if err := disableSocialNetworksForProfile(profileID1); err != nil {
+			errors = append(errors, fmt.Sprintf("Profile %s: %v", profileID1, err))
+		}
 	}
 
-	if err := client.disableSocialNetworks(); err != nil {
+	if profileID2 != "" {
+		if err := disableSocialNetworksForProfile(profileID2); err != nil {
+			errors = append(errors, fmt.Sprintf("Profile %s: %v", profileID2, err))
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("errors occurred: %s", strings.Join(errors, "; "))
+	}
+
+	return nil
+}
+
+// DisableSocialNetworks is the Cloud Function entry point
+func DisableSocialNetworks(w http.ResponseWriter, r *http.Request) {
+	if err := disableSocialNetworksForAllProfiles(); err != nil {
 		log.Printf("Error disabling social networks: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to disable social networks: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	log.Println("Successfully disabled social networks blocking (porn always blocked)")
+	log.Println("Successfully disabled social networks blocking for all profiles (porn always blocked)")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Social networks blocking disabled (porn always blocked)"))
+	w.Write([]byte("Social networks blocking disabled for all profiles (porn always blocked)"))
 }
 
 // ToggleSocialNetworks allows enabling/disabling based on query parameter
+// Supports optional 'profile' parameter to target specific profile, otherwise affects all profiles
 func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 	action := r.URL.Query().Get("action")
+	profileID := r.URL.Query().Get("profile")
+	
 	if action == "" {
-		http.Error(w, "Missing 'action' query parameter. Use ?action=enable or ?action=disable", http.StatusBadRequest)
-		return
-	}
-
-	client, err := newNextDNSClient()
-	if err != nil {
-		log.Printf("Error creating NextDNS client: %v", err)
-		http.Error(w, fmt.Sprintf("Configuration error: %v", err), http.StatusInternalServerError)
+		http.Error(w, "Missing 'action' query parameter. Use ?action=enable or ?action=disable&profile=ID (optional)", http.StatusBadRequest)
 		return
 	}
 
 	switch action {
 	case "enable":
-		if err := client.enableSocialNetworks(); err != nil {
+		var err error
+		var message string
+		
+		if profileID != "" {
+			// Target specific profile
+			err = enableSocialNetworksForProfile(profileID)
+			message = fmt.Sprintf("Social networks blocking enabled for profile %s (porn always blocked)", profileID)
+		} else {
+			// Target all profiles
+			err = enableSocialNetworksForAllProfiles()
+			message = "Social networks blocking enabled for all profiles (porn always blocked)"
+		}
+		
+		if err != nil {
 			log.Printf("Error enabling social networks: %v", err)
 			http.Error(w, fmt.Sprintf("Failed to enable social networks: %v", err), http.StatusInternalServerError)
 			return
 		}
-		log.Println("Successfully enabled social networks blocking (porn always blocked)")
+		
+		log.Println(message)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Social networks blocking enabled (porn always blocked)"))
+		w.Write([]byte(message))
+		
 	case "disable":
-		if err := client.disableSocialNetworks(); err != nil {
+		var err error
+		var message string
+		
+		if profileID != "" {
+			// Target specific profile
+			err = disableSocialNetworksForProfile(profileID)
+			message = fmt.Sprintf("Social networks blocking disabled for profile %s (porn always blocked)", profileID)
+		} else {
+			// Target all profiles
+			err = disableSocialNetworksForAllProfiles()
+			message = "Social networks blocking disabled for all profiles (porn always blocked)"
+		}
+		
+		if err != nil {
 			log.Printf("Error disabling social networks: %v", err)
 			http.Error(w, fmt.Sprintf("Failed to disable social networks: %v", err), http.StatusInternalServerError)
 			return
 		}
-		log.Println("Successfully disabled social networks blocking (porn always blocked)")
+		
+		log.Println(message)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Social networks blocking disabled (porn always blocked)"))
+		w.Write([]byte(message))
 	default:
 		http.Error(w, "Invalid action. Use ?action=enable or ?action=disable", http.StatusBadRequest)
 	}
