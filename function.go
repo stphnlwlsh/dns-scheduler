@@ -4,18 +4,17 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
 
 func init() {
-	functions.HTTP("EnableSocialNetworks", enableSocialNetworks)
-	functions.HTTP("DisableSocialNetworks", disableSocialNetworks)
-	functions.HTTP("ToggleSocialNetworks", toggleSocialNetworks)
+	functions.HTTP("EnableSocialNetworks", EnableSocialNetworks)
+	functions.HTTP("DisableSocialNetworks", DisableSocialNetworks)
+	functions.HTTP("ToggleSocialNetworks", ToggleSocialNetworks)
 }
 
-func enableSocialNetworks(w http.ResponseWriter, r *http.Request) {
+func EnableSocialNetworks(w http.ResponseWriter, r *http.Request) {
 	client, err := NewNextDNSClient()
 	if err != nil {
 		log.Printf("Error creating NextDNS client: %v", err)
@@ -34,7 +33,7 @@ func enableSocialNetworks(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Social networks blocking enabled"))
 }
 
-func disableSocialNetworks(w http.ResponseWriter, r *http.Request) {
+func DisableSocialNetworks(w http.ResponseWriter, r *http.Request) {
 	client, err := NewNextDNSClient()
 	if err != nil {
 		log.Printf("Error creating NextDNS client: %v", err)
@@ -53,8 +52,8 @@ func disableSocialNetworks(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Social networks blocking disabled"))
 }
 
-// toggleSocialNetworks allows enabling/disabling based on query parameter
-func toggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
+// ToggleSocialNetworks allows enabling/disabling based on query parameter
+func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 	action := r.URL.Query().Get("action")
 	if action == "" {
 		http.Error(w, "Missing 'action' query parameter. Use ?action=enable or ?action=disable", http.StatusBadRequest)
@@ -89,19 +88,5 @@ func toggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Social networks blocking disabled"))
 	default:
 		http.Error(w, "Invalid action. Use ?action=enable or ?action=disable", http.StatusBadRequest)
-	}
-}
-
-func main() {
-	// Use PORT environment variable, or default to 8080.
-	port := "8080"
-	if envPort := os.Getenv("PORT"); envPort != "" {
-		port = envPort
-	}
-
-	// Start HTTP server.
-	log.Printf("Listening on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
 	}
 }
