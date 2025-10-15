@@ -41,12 +41,21 @@ data "archive_file" "source" {
   ]
 }
 
-# Debug resource to verify archive creation
+# Debug resource to check directory structure and create archive manually
 resource "null_resource" "debug_archive" {
   provisioner "local-exec" {
-    command = "ls -la ${data.archive_file.source.output_path} && file ${data.archive_file.source.output_path}"
+    command = <<-EOT
+      echo "Current directory: $(pwd)"
+      echo "Contents of current directory:"
+      ls -la
+      echo "Contents of parent directory:"
+      ls -la ../
+      echo "Creating zip manually:"
+      cd .. && zip -r terraform/dns-scheduler.zip . -x 'terraform/*' '.git/*' 'README.md' '.gitignore' 'credential-config.json' '.gitlab-ci.yml'
+      echo "Checking created zip:"
+      ls -la terraform/dns-scheduler.zip
+    EOT
   }
-  depends_on = [data.archive_file.source]
 }
 
 # Storage bucket for Cloud Function source code
@@ -68,9 +77,10 @@ resource "google_storage_bucket" "function_source" {
 
 # Upload the source code to the bucket
 resource "google_storage_bucket_object" "source" {
-  name   = "dns-scheduler-${data.archive_file.source.output_md5}.zip"
+  name   = "dns-scheduler-${filemd5("./dns-scheduler.zip")}.zip"
   bucket = google_storage_bucket.function_source.name
-  source = data.archive_file.source.output_path
+  source = "./dns-scheduler.zip"
+  depends_on = [null_resource.debug_archive]
 }
 
 # Cloud Function for enabling social networks blocking
