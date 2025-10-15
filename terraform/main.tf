@@ -41,19 +41,25 @@ data "archive_file" "source" {
   ]
 }
 
-# Debug resource to check directory structure and create archive manually
-resource "null_resource" "debug_archive" {
+# Create archive manually with better error handling
+resource "null_resource" "create_archive" {
+  triggers = {
+    # Recreate if any source files change
+    always_run = timestamp()
+  }
+
   provisioner "local-exec" {
     command = <<-EOT
-      echo "Current directory: $(pwd)"
-      echo "Contents of current directory:"
-      ls -la
-      echo "Contents of parent directory:"
-      ls -la ../
-      echo "Creating zip manually:"
-      cd .. && zip -r terraform/dns-scheduler.zip . -x 'terraform/*' '.git/*' 'README.md' '.gitignore' 'credential-config.json' '.gitlab-ci.yml'
-      echo "Checking created zip:"
+      set -e
+      echo "Creating function source archive..."
+      cd ..
+      # Remove existing zip if it exists
+      rm -f terraform/dns-scheduler.zip
+      # Create new zip with Go source files
+      zip -r terraform/dns-scheduler.zip *.go go.mod go.sum -x 'terraform/*' '.git/*'
+      echo "Archive created successfully:"
       ls -la terraform/dns-scheduler.zip
+      file terraform/dns-scheduler.zip
     EOT
   }
 }
@@ -80,15 +86,13 @@ resource "google_storage_bucket_object" "source" {
   name       = "dns-scheduler-${formatdate("YYYY-MM-DD-hhmm", timestamp())}.zip"
   bucket     = google_storage_bucket.function_source.name
   source     = "./dns-scheduler.zip"
-  depends_on = [null_resource.debug_archive]
+  depends_on = [null_resource.create_archive]
 }
 
 # Cloud Function for enabling social networks blocking
 resource "google_cloudfunctions2_function" "enable_social_networks" {
   name     = "dns-scheduler-enable"
   location = var.region
-
-  depends_on = [google_project_iam_member.cloudbuild_service_account]
 
   build_config {
     runtime     = "go122"
@@ -118,8 +122,6 @@ resource "google_cloudfunctions2_function" "enable_social_networks" {
 resource "google_cloudfunctions2_function" "disable_social_networks" {
   name     = "dns-scheduler-disable"
   location = var.region
-
-  depends_on = [google_project_iam_member.cloudbuild_service_account]
 
   build_config {
     runtime     = "go122"
@@ -219,17 +221,9 @@ resource "google_project_service" "cloudbuild" {
   service = "cloudbuild.googleapis.com"
 }
 
-# Grant Cloud Build Service Account role to default compute service account
-resource "google_project_iam_member" "cloudbuild_service_account" {
-  project = var.project_id
-  role    = "roles/cloudbuild.builds.builder"
-  member  = "serviceAccount:${data.google_project.current.number}-compute@developer.gserviceaccount.com"
-}
-
-# Data source to get current project information
-data "google_project" "current" {
-  project_id = var.project_id
-}
+# Note: Cloud Build Service Account role needs to be granted manually
+# Run this command manually if function builds fail:
+# gcloud projects add-iam-policy-binding PROJECT_ID --member="serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com" --role="roles/cloudbuild.builds.builder"
 
 # Outputs
 output "enable_function_url" {
