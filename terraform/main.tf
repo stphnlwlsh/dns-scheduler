@@ -131,7 +131,7 @@ resource "google_cloudfunctions2_function" "disable_social_networks" {
   }
 }
 
-# Cloud Function for toggling social networks blocking
+# Cloud Function for toggling social networks blocking (publicly accessible for iOS app)
 resource "google_cloudfunctions2_function" "toggle_social_networks" {
   name     = "dns-scheduler-toggle"
   location = var.region
@@ -152,6 +152,7 @@ resource "google_cloudfunctions2_function" "toggle_social_networks" {
     max_instance_count = 1
     available_memory   = "128Mi"
     timeout_seconds    = 60
+    ingress_settings   = "ALLOW_ALL"
 
     environment_variables = {
       NEXTDNS_PROFILE_ID = var.nextdns_profile_id
@@ -215,6 +216,14 @@ resource "google_cloud_run_service_iam_member" "disable_invoker" {
   location = google_cloudfunctions2_function.disable_social_networks.location
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.scheduler.email}"
+}
+
+# Allow public access to toggle function for iOS app integration
+resource "google_cloud_run_service_iam_member" "toggle_public_invoker" {
+  service  = google_cloudfunctions2_function.toggle_social_networks.name
+  location = google_cloudfunctions2_function.toggle_social_networks.location
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
 
 # Enable required APIs
