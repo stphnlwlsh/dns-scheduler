@@ -13,6 +13,14 @@ variables:
   TF_ADDRESS: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/dns-scheduler"
   TF_USERNAME: "gitlab-ci-token"
   TF_PASSWORD: "${CI_JOB_TOKEN}"
+  
+  # GCP configuration
+  GOOGLE_APPLICATION_CREDENTIALS: "${CI_PROJECT_DIR}/gcp-key.json"
+
+.setup_gcp: &setup_gcp
+  before_script:
+    - cp $GOOGLE_CREDENTIALS $GOOGLE_APPLICATION_CREDENTIALS
+    - gcloud config set project $GOOGLE_PROJECT_ID
 
 stages:
   - validate
@@ -22,11 +30,13 @@ stages:
 # Validate Terraform configuration
 tofu:validate:
   extends: .opentofu:validate
+  <<: *setup_gcp
   stage: validate
 
 # Plan Terraform changes
 tofu:plan:
   extends: .opentofu:plan
+  <<: *setup_gcp
   stage: plan
   artifacts:
     reports:
@@ -35,6 +45,7 @@ tofu:plan:
 # Apply Terraform changes (manual deployment)
 tofu:deploy:
   extends: .opentofu:deploy
+  <<: *setup_gcp
   stage: deploy
   when: manual
   only:
