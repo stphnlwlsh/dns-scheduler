@@ -16,8 +16,8 @@ variables:
 
 .setup_gcp: &setup_gcp
   before_script:
-    # Install OpenTofu
-    - apk add --no-cache curl unzip
+    # Install OpenTofu and zip
+    - apk add --no-cache curl unzip zip
     - curl -L https://github.com/opentofu/opentofu/releases/download/v1.8.4/tofu_1.8.4_linux_amd64.zip -o tofu.zip
     - unzip -o tofu.zip && chmod +x tofu && mv tofu /usr/local/bin/tofu
     - tofu version
