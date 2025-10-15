@@ -30,12 +30,14 @@ variable "nextdns_api_key" {
 data "archive_file" "source" {
   type        = "zip"
   source_dir  = "../"
-  output_path = "/tmp/dns-scheduler.zip"
+  output_path = "./dns-scheduler.zip"
   excludes = [
     "terraform/",
     ".git/",
     "README.md",
-    ".gitignore"
+    ".gitignore",
+    "credential-config.json",
+    ".gitlab-ci.yml"
   ]
 }
 
