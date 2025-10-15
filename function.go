@@ -89,24 +89,35 @@ func (c *NextDNSClient) enableSocialNetworks() error {
 		return fmt.Errorf("failed to get current settings: %w", err)
 	}
 
-	// Find and update the social-networks category, or add it if it doesn't exist
-	found := false
+	// Ensure porn category is always blocked and update social-networks category
+	socialNetworksFound := false
+	pornFound := false
 	for i, category := range currentSettings.Categories {
 		if category.ID == "social-networks" {
 			currentSettings.Categories[i].Active = true
-			found = true
-			break
+			socialNetworksFound = true
+		} else if category.ID == "porn" {
+			currentSettings.Categories[i].Active = true // Always keep porn blocked
+			pornFound = true
 		}
 	}
 
-	// If social-networks category doesn't exist, add it
-	if !found {
+	// Add missing categories if they don't exist
+	if !socialNetworksFound {
 		socialNetworksCategory := CategoryPayload{
 			ID:         "social-networks",
 			Recreation: false,
 			Active:     true,
 		}
 		currentSettings.Categories = append(currentSettings.Categories, socialNetworksCategory)
+	}
+	if !pornFound {
+		pornCategory := CategoryPayload{
+			ID:         "porn",
+			Recreation: false,
+			Active:     true, // Always blocked
+		}
+		currentSettings.Categories = append(currentSettings.Categories, pornCategory)
 	}
 
 	// Send the updated settings
@@ -155,9 +166,9 @@ func EnableSocialNetworks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Successfully enabled social networks blocking")
+	log.Println("Successfully enabled social networks blocking (porn always blocked)")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Social networks blocking enabled"))
+	w.Write([]byte("Social networks blocking enabled (porn always blocked)"))
 }
 
 func (c *NextDNSClient) disableSocialNetworks() error {
@@ -166,24 +177,35 @@ func (c *NextDNSClient) disableSocialNetworks() error {
 		return fmt.Errorf("failed to get current settings: %w", err)
 	}
 
-	// Find and update the social-networks category, or add it if it doesn't exist
-	found := false
+	// Ensure porn category is always blocked and update social-networks category
+	socialNetworksFound := false
+	pornFound := false
 	for i, category := range currentSettings.Categories {
 		if category.ID == "social-networks" {
 			currentSettings.Categories[i].Active = false
-			found = true
-			break
+			socialNetworksFound = true
+		} else if category.ID == "porn" {
+			currentSettings.Categories[i].Active = true // Always keep porn blocked
+			pornFound = true
 		}
 	}
 
-	// If social-networks category doesn't exist, add it as disabled
-	if !found {
+	// Add missing categories if they don't exist
+	if !socialNetworksFound {
 		socialNetworksCategory := CategoryPayload{
 			ID:         "social-networks",
 			Recreation: false,
 			Active:     false,
 		}
 		currentSettings.Categories = append(currentSettings.Categories, socialNetworksCategory)
+	}
+	if !pornFound {
+		pornCategory := CategoryPayload{
+			ID:         "porn",
+			Recreation: false,
+			Active:     true, // Always blocked
+		}
+		currentSettings.Categories = append(currentSettings.Categories, pornCategory)
 	}
 
 	// Send the updated settings
@@ -232,9 +254,9 @@ func DisableSocialNetworks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Successfully disabled social networks blocking")
+	log.Println("Successfully disabled social networks blocking (porn always blocked)")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Social networks blocking disabled"))
+	w.Write([]byte("Social networks blocking disabled (porn always blocked)"))
 }
 
 // ToggleSocialNetworks allows enabling/disabling based on query parameter
@@ -259,18 +281,18 @@ func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Failed to enable social networks: %v", err), http.StatusInternalServerError)
 			return
 		}
-		log.Println("Successfully enabled social networks blocking")
+		log.Println("Successfully enabled social networks blocking (porn always blocked)")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Social networks blocking enabled"))
+		w.Write([]byte("Social networks blocking enabled (porn always blocked)"))
 	case "disable":
 		if err := client.disableSocialNetworks(); err != nil {
 			log.Printf("Error disabling social networks: %v", err)
 			http.Error(w, fmt.Sprintf("Failed to disable social networks: %v", err), http.StatusInternalServerError)
 			return
 		}
-		log.Println("Successfully disabled social networks blocking")
+		log.Println("Successfully disabled social networks blocking (porn always blocked)")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Social networks blocking disabled"))
+		w.Write([]byte("Social networks blocking disabled (porn always blocked)"))
 	default:
 		http.Error(w, "Invalid action. Use ?action=enable or ?action=disable", http.StatusBadRequest)
 	}
