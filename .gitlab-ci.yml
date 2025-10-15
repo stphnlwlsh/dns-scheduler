@@ -1,4 +1,4 @@
-image: alpine:latest
+image: google/cloud-sdk:alpine
 
 variables:
   # Terraform plan cache filename
@@ -16,12 +16,8 @@ variables:
 
 .setup_gcp: &setup_gcp
   before_script:
-    # Install dependencies
-    - apk add --no-cache curl unzip bash python3 py3-pip
-    - curl -L https://github.com/GoogleCloudPlatform/cloud-sdk-docker/releases/download/latest/google-cloud-cli-alpine.tar.gz | tar -xz
-    - ./google-cloud-sdk/install.sh --quiet
-    - export PATH="$PATH:./google-cloud-sdk/bin"
     # Install OpenTofu
+    - apk add --no-cache curl unzip
     - curl -L https://github.com/opentofu/opentofu/releases/download/v1.8.4/tofu_1.8.4_linux_amd64.zip -o tofu.zip
     - unzip tofu.zip && chmod +x tofu && mv tofu /usr/local/bin/
     # Setup GCP authentication
