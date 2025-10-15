@@ -1,0 +1,44 @@
+include:
+  - component: gitlab.com/components/opentofu/job-templates@1.0.0
+    inputs:
+      version: "1.8.4"
+      opentofu_directory: "terraform"
+
+variables:
+  # Terraform plan cache filename
+  TF_PLAN_CACHE: "plan.cache"
+  
+  # Backend configuration for GitLab state management
+  # These will be automatically configured by GitLab CI/CD
+  TF_ADDRESS: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/dns-scheduler"
+  TF_USERNAME: "gitlab-ci-token"
+  TF_PASSWORD: "${CI_JOB_TOKEN}"
+
+stages:
+  - validate
+  - plan
+  - deploy
+
+# Validate Terraform configuration
+tofu:validate:
+  extends: .opentofu:validate
+  stage: validate
+
+# Plan Terraform changes
+tofu:plan:
+  extends: .opentofu:plan
+  stage: plan
+  artifacts:
+    reports:
+      terraform: ${TF_PLAN_CACHE}
+
+# Apply Terraform changes (manual deployment)
+tofu:deploy:
+  extends: .opentofu:deploy
+  stage: deploy
+  when: manual
+  only:
+    - main
+    - master
+  dependencies:
+    - tofu:plan
