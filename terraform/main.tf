@@ -41,6 +41,14 @@ data "archive_file" "source" {
   ]
 }
 
+# Debug resource to verify archive creation
+resource "null_resource" "debug_archive" {
+  provisioner "local-exec" {
+    command = "ls -la ${data.archive_file.source.output_path} && file ${data.archive_file.source.output_path}"
+  }
+  depends_on = [data.archive_file.source]
+}
+
 # Storage bucket for Cloud Function source code
 resource "google_storage_bucket" "function_source" {
   name     = "${var.project_id}-dns-scheduler-source"
