@@ -55,8 +55,8 @@ resource "null_resource" "create_archive" {
       cd ..
       # Remove existing zip if it exists
       rm -f terraform/dns-scheduler.zip
-      # Create new zip with Go source files (no go.mod for Cloud Functions)
-      zip -r terraform/dns-scheduler.zip *.go -x 'terraform/*' '.git/*'
+      # Create new zip with Go source files and dependencies
+      zip -r terraform/dns-scheduler.zip *.go go.mod go.sum -x 'terraform/*' '.git/*'
       echo "Archive created successfully:"
       ls -la terraform/dns-scheduler.zip
     EOT
