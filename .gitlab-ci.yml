@@ -19,7 +19,7 @@ variables:
     # Install OpenTofu
     - apk add --no-cache curl unzip
     - curl -L https://github.com/opentofu/opentofu/releases/download/v1.8.4/tofu_1.8.4_linux_amd64.zip -o tofu.zip
-    - unzip tofu.zip && chmod +x tofu && mv tofu /usr/local/bin/tofu
+    - unzip -o tofu.zip && chmod +x tofu && mv tofu /usr/local/bin/tofu
     - tofu version
     # Setup GCP authentication
     - cd terraform
