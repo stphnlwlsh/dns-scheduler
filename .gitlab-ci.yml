@@ -1,8 +1,4 @@
-include:
-  - component: gitlab.com/components/opentofu/job-templates@1.0.0
-    inputs:
-      version: "1.8.4"
-      opentofu_directory: "terraform"
+image: alpine:latest
 
 variables:
   # Terraform plan cache filename
@@ -20,6 +16,16 @@ variables:
 
 .setup_gcp: &setup_gcp
   before_script:
+    # Install dependencies
+    - apk add --no-cache curl unzip bash python3 py3-pip
+    - curl -L https://github.com/GoogleCloudPlatform/cloud-sdk-docker/releases/download/latest/google-cloud-cli-alpine.tar.gz | tar -xz
+    - ./google-cloud-sdk/install.sh --quiet
+    - export PATH="$PATH:./google-cloud-sdk/bin"
+    # Install OpenTofu
+    - curl -L https://github.com/opentofu/opentofu/releases/download/v1.8.4/tofu_1.8.4_linux_amd64.zip -o tofu.zip
+    - unzip tofu.zip && chmod +x tofu && mv tofu /usr/local/bin/
+    # Setup GCP authentication
+    - cd terraform
     - echo $OIDC_TOKEN > /tmp/oidc_token
     - gcloud auth login --brief --cred-file=/tmp/oidc_token --identity-provider=$WORKLOAD_IDENTITY_PROVIDER --service-account=$SERVICE_ACCOUNT_EMAIL
     - gcloud config set project $GOOGLE_PROJECT_ID
@@ -29,30 +35,35 @@ stages:
   - plan
   - deploy
 
-# Validate Terraform configuration
+# Validate OpenTofu configuration
 tofu:validate:
-  extends: .opentofu:validate
   <<: *setup_gcp
   stage: validate
   id_tokens:
     OIDC_TOKEN:
       aud: https://iam.googleapis.com/projects/494349858621/locations/global/workloadIdentityPools/gitlab-pool/providers/gitlab-provider
+  script:
+    - tofu init
+    - tofu validate
+    - tofu fmt -check
 
-# Plan Terraform changes
+# Plan OpenTofu changes
 tofu:plan:
-  extends: .opentofu:plan
   <<: *setup_gcp
   stage: plan
   id_tokens:
     OIDC_TOKEN:
       aud: https://iam.googleapis.com/projects/494349858621/locations/global/workloadIdentityPools/gitlab-pool/providers/gitlab-provider
+  script:
+    - tofu init
+    - tofu plan -out=${TF_PLAN_CACHE}
   artifacts:
-    reports:
-      terraform: ${TF_PLAN_CACHE}
+    paths:
+      - terraform/${TF_PLAN_CACHE}
+    expire_in: 7 days
 
-# Apply Terraform changes (manual deployment)
+# Apply OpenTofu changes (manual deployment)
 tofu:deploy:
-  extends: .opentofu:deploy
   <<: *setup_gcp
   stage: deploy
   when: manual
@@ -62,5 +73,8 @@ tofu:deploy:
   id_tokens:
     OIDC_TOKEN:
       aud: https://iam.googleapis.com/projects/494349858621/locations/global/workloadIdentityPools/gitlab-pool/providers/gitlab-provider
+  script:
+    - tofu init
+    - tofu apply ${TF_PLAN_CACHE}
   dependencies:
     - tofu:plan
