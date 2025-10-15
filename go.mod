@@ -1,4 +1,4 @@
-module dns-scheduler
+module example.com/dns-scheduler
 
 go 1.22
 
