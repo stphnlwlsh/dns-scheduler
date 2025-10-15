@@ -1,0 +1,6 @@
+# Copy this file to terraform.tfvars and fill in your actual values
+
+project_id         = "your-gcp-project-id"
+region            = "us-central1"
+nextdns_profile_id = "your-nextdns-profile-id"
+nextdns_api_key   = "your-nextdns-api-key"
