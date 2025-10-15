@@ -88,6 +88,8 @@ resource "google_cloudfunctions2_function" "enable_social_networks" {
   name     = "dns-scheduler-enable"
   location = var.region
 
+  depends_on = [google_project_iam_member.cloudbuild_service_account]
+
   build_config {
     runtime     = "go122"
     entry_point = "EnableSocialNetworks"
@@ -116,6 +118,8 @@ resource "google_cloudfunctions2_function" "enable_social_networks" {
 resource "google_cloudfunctions2_function" "disable_social_networks" {
   name     = "dns-scheduler-disable"
   location = var.region
+
+  depends_on = [google_project_iam_member.cloudbuild_service_account]
 
   build_config {
     runtime     = "go122"
@@ -213,6 +217,18 @@ resource "google_project_service" "cloudscheduler" {
 
 resource "google_project_service" "cloudbuild" {
   service = "cloudbuild.googleapis.com"
+}
+
+# Grant Cloud Build Service Account role to default compute service account
+resource "google_project_iam_member" "cloudbuild_service_account" {
+  project = var.project_id
+  role    = "roles/cloudbuild.builds.builder"
+  member  = "serviceAccount:${data.google_project.current.number}-compute@developer.gserviceaccount.com"
+}
+
+# Data source to get current project information
+data "google_project" "current" {
+  project_id = var.project_id
 }
 
 # Outputs
