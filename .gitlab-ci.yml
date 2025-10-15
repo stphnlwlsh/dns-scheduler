@@ -25,7 +25,7 @@ variables:
     - echo $OIDC_TOKEN > /tmp/oidc_token
     - cp ../credential-config.json /tmp/credential-config.json
     - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/credential-config.json
-    - gcloud auth activate-service-account --key-file=/tmp/credential-config.json
+    - gcloud auth login --cred-file=/tmp/credential-config.json
     - gcloud config set project $GOOGLE_PROJECT_ID
 
 stages:
