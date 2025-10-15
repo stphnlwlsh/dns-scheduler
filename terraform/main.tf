@@ -77,9 +77,9 @@ resource "google_storage_bucket" "function_source" {
 
 # Upload the source code to the bucket
 resource "google_storage_bucket_object" "source" {
-  name   = "dns-scheduler-${formatdate("YYYY-MM-DD-hhmm", timestamp())}.zip"
-  bucket = google_storage_bucket.function_source.name
-  source = "./dns-scheduler.zip"
+  name       = "dns-scheduler-${formatdate("YYYY-MM-DD-hhmm", timestamp())}.zip"
+  bucket     = google_storage_bucket.function_source.name
+  source     = "./dns-scheduler.zip"
   depends_on = [null_resource.debug_archive]
 }
 
