@@ -21,6 +21,14 @@ func init() {
 
 const nextDNSAPIURL = "https://api.nextdns.io"
 
+// YouTube domains to block when social networks are blocked
+var youtubeDomains = []string{
+	"youtube.com",
+	"youtu.be",
+	"www.youtube.com",
+	"m.youtube.com",
+}
+
 type NextDNSClient struct {
 	profileID string
 	apiKey    string
@@ -162,6 +170,12 @@ func (c *NextDNSClient) enableSocialNetworks() error {
 	}
 
 	fmt.Printf("Successfully enabled social networks category\n")
+
+	// Also add YouTube domains to denylist when blocking social networks
+	if err := c.addYouTubeToDenylist(); err != nil {
+		fmt.Printf("Warning: Failed to add YouTube domains to denylist: %v\n", err)
+	}
+
 	return nil
 }
 
@@ -248,6 +262,34 @@ func (c *NextDNSClient) addToDenylist(domain string) error {
 	}
 
 	fmt.Printf("Successfully added %s to denylist\n", domain)
+	return nil
+}
+
+// addYouTubeToDenylist adds YouTube domains to the denylist
+func (c *NextDNSClient) addYouTubeToDenylist() error {
+	var errors []string
+	for _, domain := range youtubeDomains {
+		if err := c.addToDenylist(domain); err != nil {
+			errors = append(errors, fmt.Sprintf("%s: %v", domain, err))
+		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to add some YouTube domains: %s", strings.Join(errors, "; "))
+	}
+	return nil
+}
+
+// removeYouTubeFromDenylist removes YouTube domains from the denylist
+func (c *NextDNSClient) removeYouTubeFromDenylist() error {
+	var errors []string
+	for _, domain := range youtubeDomains {
+		if err := c.removeFromDenylist(domain); err != nil {
+			errors = append(errors, fmt.Sprintf("%s: %v", domain, err))
+		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to remove some YouTube domains: %s", strings.Join(errors, "; "))
+	}
 	return nil
 }
 
@@ -356,6 +398,12 @@ func (c *NextDNSClient) disableSocialNetworks() error {
 	}
 
 	fmt.Printf("Successfully disabled social networks category\n")
+
+	// Also remove YouTube domains from denylist when unblocking social networks
+	if err := c.removeYouTubeFromDenylist(); err != nil {
+		fmt.Printf("Warning: Failed to remove YouTube domains from denylist: %v\n", err)
+	}
+
 	return nil
 }
 
