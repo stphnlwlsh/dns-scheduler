@@ -472,10 +472,16 @@ func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 		var err error
 		var message string
 		
-		if profileID != "" {
+		// If panic_profile is provided, use that as the target profile
+		targetProfile := profileID
+		if panicProfileID != "" {
+			targetProfile = panicProfileID
+		}
+		
+		if targetProfile != "" {
 			// Target specific profile
-			err = enableSocialNetworksForProfile(profileID)
-			message = fmt.Sprintf("Social networks blocking enabled for profile %s (porn always blocked)", profileID)
+			err = enableSocialNetworksForProfile(targetProfile)
+			message = fmt.Sprintf("Social networks blocking enabled for profile %s (porn always blocked)", targetProfile)
 		} else {
 			// Target all profiles
 			err = enableSocialNetworksForAllProfiles()
@@ -493,7 +499,7 @@ func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 		// Handle panic URL blocking if panic_profile is provided
 		if panicProfileID != "" {
 			if err := handlePanicURL(panicProfileID, "block"); err != nil {
-				log.Printf("Warning: Failed to block panic URL: %v", err)
+				log.Printf("Warning: Failed to block panic URL for profile %s: %v", panicProfileID, err)
 				// Don't fail the whole request, just log the warning
 			}
 		}
@@ -505,10 +511,16 @@ func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 		var err error
 		var message string
 		
-		if profileID != "" {
+		// If panic_profile is provided, use that as the target profile
+		targetProfile := profileID
+		if panicProfileID != "" {
+			targetProfile = panicProfileID
+		}
+		
+		if targetProfile != "" {
 			// Target specific profile
-			err = disableSocialNetworksForProfile(profileID)
-			message = fmt.Sprintf("Social networks blocking disabled for profile %s (porn always blocked)", profileID)
+			err = disableSocialNetworksForProfile(targetProfile)
+			message = fmt.Sprintf("Social networks blocking disabled for profile %s (porn always blocked)", targetProfile)
 		} else {
 			// Target all profiles
 			err = disableSocialNetworksForAllProfiles()
@@ -526,7 +538,7 @@ func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 		// Handle panic URL unblocking if panic_profile is provided
 		if panicProfileID != "" {
 			if err := handlePanicURL(panicProfileID, "unblock"); err != nil {
-				log.Printf("Warning: Failed to unblock panic URL: %v", err)
+				log.Printf("Warning: Failed to unblock panic URL for profile %s: %v", panicProfileID, err)
 				// Don't fail the whole request, just log the warning
 			}
 		}
