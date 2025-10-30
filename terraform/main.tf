@@ -86,7 +86,7 @@ resource "google_cloudfunctions2_function" "enable_social_networks" {
   location = var.region
 
   build_config {
-    runtime     = "go122"
+    runtime     = "go125"
     entry_point = "EnableSocialNetworks"
 
     source {
@@ -116,7 +116,7 @@ resource "google_cloudfunctions2_function" "disable_social_networks" {
   location = var.region
 
   build_config {
-    runtime     = "go122"
+    runtime     = "go125"
     entry_point = "DisableSocialNetworks"
 
     source {
@@ -146,7 +146,7 @@ resource "google_cloudfunctions2_function" "toggle_social_networks" {
   location = var.region
 
   build_config {
-    runtime     = "go122"
+    runtime     = "go125"
     entry_point = "ToggleSocialNetworks"
 
     source {
