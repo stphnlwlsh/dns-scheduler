@@ -13,6 +13,12 @@ variables:
   # GCP Workload Identity Federation
   WORKLOAD_IDENTITY_PROVIDER: "projects/494349858621/locations/global/workloadIdentityPools/gitlab-pool/providers/gitlab-provider"
   SERVICE_ACCOUNT_EMAIL: "gitlab-ci-dns-scheduler@cwaw-prod-dns-scheduler-85632c.iam.gserviceaccount.com"
+  
+  # Terraform variables (set in GitLab CI/CD settings)
+  TF_VAR_project_id: "${GOOGLE_PROJECT_ID}"
+  TF_VAR_nextdns_profile_id: "${NEXTDNS_PROFILE_ID}"
+  TF_VAR_nextdns_api_key: "${NEXTDNS_API_KEY}"
+  TF_VAR_nextdns_profile_id_2: "${NEXTDNS_PROFILE_ID_2}"
 
 .setup_gcp: &setup_gcp
   before_script:
