@@ -320,6 +320,49 @@ func (c *NextDNSClient) removeFromDenylist(domain string) error {
 	return nil
 }
 
+// isPanicModeActive checks if my.nextdns.io is in the denylist (indicating panic mode)
+func (c *NextDNSClient) isPanicModeActive() (bool, error) {
+	url := fmt.Sprintf("%s/profiles/%s/denylist", nextDNSAPIURL, c.profileID)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to create GET request: %w", err)
+	}
+
+	req.Header.Set("x-api-key", c.apiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("failed to get denylist: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return false, fmt.Errorf("NextDNS API GET returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var denylist struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&denylist); err != nil {
+		return false, fmt.Errorf("failed to decode denylist: %w", err)
+	}
+
+	// Check if my.nextdns.io is in the denylist
+	for _, entry := range denylist.Data {
+		if entry.ID == "my.nextdns.io" {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // EnableSocialNetworks is the Cloud Function entry point
 func EnableSocialNetworks(w http.ResponseWriter, r *http.Request) {
 	if err := enableSocialNetworksForAllProfiles(); err != nil {
@@ -334,6 +377,16 @@ func EnableSocialNetworks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *NextDNSClient) disableSocialNetworks() error {
+	// Check if panic mode is active - if so, don't disable
+	panicActive, err := c.isPanicModeActive()
+	if err != nil {
+		log.Printf("Warning: Failed to check panic mode status: %v", err)
+		// Continue anyway if we can't check
+	} else if panicActive {
+		fmt.Printf("Panic mode active for profile %s - skipping disable\n", c.profileID)
+		return fmt.Errorf("panic mode active - blocking will not be disabled")
+	}
+
 	currentSettings, err := c.getCurrentSettings()
 	if err != nil {
 		return fmt.Errorf("failed to get current settings: %w", err)
@@ -444,6 +497,13 @@ func disableSocialNetworksForAllProfiles() error {
 // DisableSocialNetworks is the Cloud Function entry point
 func DisableSocialNetworks(w http.ResponseWriter, r *http.Request) {
 	if err := disableSocialNetworksForAllProfiles(); err != nil {
+		// Check if all errors are due to panic mode
+		if strings.Contains(err.Error(), "panic mode active") {
+			log.Printf("Panic mode is active - scheduled disable skipped: %v", err)
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("Panic mode active - blocking maintained. Use toggle function to disable panic mode."))
+			return
+		}
 		log.Printf("Error disabling social networks: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to disable social networks: %v", err), http.StatusInternalServerError)
 		return
