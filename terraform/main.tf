@@ -175,7 +175,7 @@ resource "google_cloudfunctions2_function" "toggle_social_networks" {
 resource "google_cloud_scheduler_job" "enable_social_networks" {
   name             = "dns-scheduler-enable-schedule"
   description      = "Enable social networks blocking at 8:30 PM Central Time"
-  schedule         = "00 20 * * *" # 8:00 PM daily
+  schedule         = "0 30 20 * * *" # 8:30 PM daily
   time_zone        = "America/Chicago"
   attempt_deadline = "60s"
 
