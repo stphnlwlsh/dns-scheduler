@@ -1,12 +1,15 @@
 image: google/cloud-sdk:alpine
 
 variables:
+  # GCP Project Configuration
+  GOOGLE_PROJECT_ID: "cwaw-prod-67f8c561"
+
   # Terraform plan cache filename
   TF_PLAN_CACHE: "plan.cache"
   
   # Backend configuration for GitLab state management
   # These will be automatically configured by GitLab CI/CD
-  TF_ADDRESS: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/dns-scheduler"
+  TF_ADDRESS: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/dns-scheduler-67f8c561"
   TF_USERNAME: "gitlab-ci-token"
   TF_PASSWORD: "${CI_JOB_TOKEN}"
   
