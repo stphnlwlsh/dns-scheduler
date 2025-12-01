@@ -46,7 +46,6 @@ stages:
   - plan
   - deploy
 
-# Validate OpenTofu configuration
 tofu:validate:
   <<: *setup_gcp
   stage: validate
@@ -58,7 +57,6 @@ tofu:validate:
     - tofu validate
     - tofu fmt -check
 
-# Plan OpenTofu changes
 tofu:plan:
   <<: *setup_gcp
   stage: plan
@@ -73,7 +71,6 @@ tofu:plan:
       - terraform/${TF_PLAN_CACHE}
     expire_in: 7 days
 
-# Apply OpenTofu changes (manual deployment)
 tofu:deploy:
   <<: *setup_gcp
   stage: deploy
@@ -89,3 +86,8 @@ tofu:deploy:
     - tofu apply ${TF_PLAN_CACHE}
   dependencies:
     - tofu:plan
+
+secret_detection:
+  stage: .post
+include:
+  - template: Security/Secret-Detection.gitlab-ci.yml
