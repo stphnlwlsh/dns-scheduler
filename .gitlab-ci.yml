@@ -3,19 +3,21 @@ image: google/cloud-sdk:alpine
 variables:
   # Terraform plan cache filename
   TF_PLAN_CACHE: "plan.cache"
-  
+
   # Backend configuration for GitLab state management
   # These will be automatically configured by GitLab CI/CD
   TF_ADDRESS: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/dns-scheduler"
   TF_USERNAME: "gitlab-ci-token"
   TF_PASSWORD: "${CI_JOB_TOKEN}"
-  
-  # GCP Workload Identity Federation
-  WORKLOAD_IDENTITY_PROVIDER: "projects/494349858621/locations/global/workloadIdentityPools/gitlab-pool/providers/gitlab-provider"
-  SERVICE_ACCOUNT_EMAIL: "gitlab-ci-dns-scheduler@cwaw-prod-67f8c561.iam.gserviceaccount.com"
-  
+
+  # GCP variables are set in GitLab CI/CD Settings -> Variables:
+  # - GCP_PROJECT_ID
+  # - GCP_REGION
+  # - GCP_SERVICE_ACCOUNT_EMAIL
+  # - GCP_GCP_WORKLOAD_IDENTITY_PROVIDER
+
   # Terraform variables (set in GitLab CI/CD settings)
-  TF_VAR_project_id: "${GOOGLE_PROJECT_ID}"
+  TF_VAR_project_id: "${GCP_PROJECT_ID}"
   TF_VAR_nextdns_profile_id: "${NEXTDNS_PROFILE_ID}"
   TF_VAR_nextdns_api_key: "${NEXTDNS_API_KEY}"
   TF_VAR_nextdns_profile_id_2: "${NEXTDNS_PROFILE_ID_2}"
@@ -32,8 +34,8 @@ variables:
     - echo $OIDC_TOKEN > /tmp/oidc_token
     - cp ../credential-config.json /tmp/credential-config.json
     - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/credential-config.json
+    - gcloud config set project $GCP_PROJECT_ID
     - gcloud auth login --cred-file=/tmp/credential-config.json
-    - gcloud config set project $GOOGLE_PROJECT_ID
     # Set backend configuration as environment variables
     - export TF_HTTP_ADDRESS="${TF_ADDRESS}"
     - export TF_HTTP_USERNAME="${TF_USERNAME}"
@@ -50,7 +52,7 @@ tofu:validate:
   stage: validate
   id_tokens:
     OIDC_TOKEN:
-      aud: https://iam.googleapis.com/projects/494349858621/locations/global/workloadIdentityPools/gitlab-pool/providers/gitlab-provider
+      aud: "https://iam.googleapis.com/${GCP_WORKLOAD_IDENTITY_PROVIDER}"
   script:
     - tofu init
     - tofu validate
@@ -62,7 +64,7 @@ tofu:plan:
   stage: plan
   id_tokens:
     OIDC_TOKEN:
-      aud: https://iam.googleapis.com/projects/494349858621/locations/global/workloadIdentityPools/gitlab-pool/providers/gitlab-provider
+      aud: "https://iam.googleapis.com/${GCP_WORKLOAD_IDENTITY_PROVIDER}"
   script:
     - tofu init
     - tofu plan -out=${TF_PLAN_CACHE}
@@ -81,7 +83,7 @@ tofu:deploy:
     - master
   id_tokens:
     OIDC_TOKEN:
-      aud: https://iam.googleapis.com/projects/494349858621/locations/global/workloadIdentityPools/gitlab-pool/providers/gitlab-provider
+      aud: "https://iam.googleapis.com/${GCP_WORKLOAD_IDENTITY_PROVIDER}"
   script:
     - tofu init
     - tofu apply ${TF_PLAN_CACHE}
