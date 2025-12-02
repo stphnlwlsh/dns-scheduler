@@ -65,6 +65,9 @@ build:
     - cp credential-config.json /tmp/credential-config.json
     - gcloud config set project $GCP_PROJECT_ID
     - gcloud auth login --cred-file=/tmp/credential-config.json
+    # Temporarily grant permissions to allow Terraform to destroy old resources
+    - gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}" --role="roles/storage.admin" || true
+    - gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}" --role="roles/cloudfunctions.developer" || true
     - gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet
     - gcloud artifacts repositories create dns-scheduler-repo --repository-format=docker --location=${GCP_REGION} --project=${GCP_PROJECT_ID} || true
   script:
@@ -89,9 +92,7 @@ tofu:validate:
     - tofu fmt -check
 
 tofu:plan:
-  before_script:
-    - gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}" --role="roles/storage.admin" || true
-    - gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}" --role="roles/cloudfunctions.developer" || true
+  <<: *setup_gcp
   stage: plan
   id_tokens:
     OIDC_TOKEN:
