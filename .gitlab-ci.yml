@@ -89,7 +89,9 @@ tofu:validate:
     - tofu fmt -check
 
 tofu:plan:
-  <<: *setup_gcp
+  before_script:
+    - gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}" --role="roles/storage.admin" || true
+    - gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}" --role="roles/cloudfunctions.developer" || true
   stage: plan
   id_tokens:
     OIDC_TOKEN:
