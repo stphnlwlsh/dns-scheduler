@@ -1,58 +1,82 @@
-image: docker:20.10.16
-
-services:
-  - docker:20.10.16-dind
+image: google/cloud-sdk:alpine
 
 variables:
-  DOCKER_HOST: tcp://docker:2375
-  DOCKER_TLS_CERTDIR: ""
-  IMAGE_TAG: $CI_COMMIT_SHA
+  # Terraform plan cache filename
   TF_PLAN_CACHE: "plan.cache"
+
+  # Backend configuration for GitLab state management
+  # These will be automatically configured by GitLab CI/CD
   TF_ADDRESS: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/terraform/state/dns-scheduler"
   TF_USERNAME: "gitlab-ci-token"
   TF_PASSWORD: "${CI_JOB_TOKEN}"
+
+  # GCP variables are set in GitLab CI/CD Settings -> Variables:
+  # - GAR_REPOSITORY
+  # - GCP_PROJECT_ID
+  # - GCP_REGION
+  # - GCP_SERVICE_ACCOUNT_EMAIL
+  # - GCP_GCP_WORKLOAD_IDENTITY_PROVIDER
+
   TF_VAR_project_id: "${GCP_PROJECT_ID}"
+  TF_VAR_region: "${GCP_REGION}"
   TF_VAR_nextdns_profile_id: "${NEXTDNS_PROFILE_ID}"
   TF_VAR_nextdns_api_key: "${NEXTDNS_API_KEY}"
   TF_VAR_nextdns_profile_id_2: "${NEXTDNS_PROFILE_ID_2}"
-  TF_VAR_image_tag: "${IMAGE_TAG}"
 
 .setup_gcp: &setup_gcp
   before_script:
-    - apk add --no-cache curl unzip
+    # Install OpenTofu and zip
+    - apk add --no-cache curl unzip zip
     - curl -L https://github.com/opentofu/opentofu/releases/download/v1.8.4/tofu_1.8.4_linux_amd64.zip -o tofu.zip
     - unzip -o tofu.zip && chmod +x tofu && mv tofu /usr/local/bin/tofu
     - tofu version
+    # Setup GCP authentication
     - cd terraform
     - echo $OIDC_TOKEN > /tmp/oidc_token
     - cp ../credential-config.json /tmp/credential-config.json
     - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/credential-config.json
     - gcloud config set project $GCP_PROJECT_ID
     - gcloud auth login --cred-file=/tmp/credential-config.json
+    # Set backend configuration as environment variables
     - export TF_HTTP_ADDRESS="${TF_ADDRESS}"
     - export TF_HTTP_USERNAME="${TF_USERNAME}"
     - export TF_HTTP_PASSWORD="${TF_PASSWORD}"
 
 stages:
-  - build
   - validate
+  - build
+  - test
   - plan
   - deploy
 
 build:
   stage: build
+  image: google/cloud-sdk:alpine
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
   id_tokens:
     OIDC_TOKEN:
       aud: "https://iam.googleapis.com/${GCP_WORKLOAD_IDENTITY_PROVIDER}"
-  script:
+  before_script:
+    - apk add --no-cache docker-cli
     - echo $OIDC_TOKEN > /tmp/oidc_token
-    - gcloud auth login --cred-file=credential-config.json
-    - gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev
-    - docker build -t ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${IMAGE_TAG} .
-    - docker push ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${IMAGE_TAG}
+    - cp credential-config.json /tmp/credential-config.json
+    - gcloud config set project $GCP_PROJECT_ID
+    - gcloud auth login --cred-file=/tmp/credential-config.json
+    - gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet
+  script:
+    - echo "IMAGE_TAG=${CI_COMMIT_SHORT_SHA}" >> build.env
+    - docker build -t "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${CI_COMMIT_SHORT_SHA}" .
+    - docker push "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${CI_COMMIT_SHORT_SHA}"
+  artifacts:
+    reports:
+      dotenv: build.env
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
 
 tofu:validate:
-  image: google/cloud-sdk:alpine
   <<: *setup_gcp
   stage: validate
   id_tokens:
@@ -64,7 +88,6 @@ tofu:validate:
     - tofu fmt -check
 
 tofu:plan:
-  image: google/cloud-sdk:alpine
   <<: *setup_gcp
   stage: plan
   id_tokens:
@@ -72,14 +95,17 @@ tofu:plan:
       aud: "https://iam.googleapis.com/${GCP_WORKLOAD_IDENTITY_PROVIDER}"
   script:
     - tofu init
-    - tofu plan -out=${TF_PLAN_CACHE}
+    - tofu plan -var="image_tag=${IMAGE_TAG}" -out=${TF_PLAN_CACHE}
   artifacts:
     paths:
       - terraform/${TF_PLAN_CACHE}
     expire_in: 7 days
+  dependencies:
+    - build
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
 
 tofu:deploy:
-  image: google/cloud-sdk:alpine
   <<: *setup_gcp
   stage: deploy
   when: manual
@@ -92,8 +118,10 @@ tofu:deploy:
   script:
     - tofu init
     - tofu apply ${TF_PLAN_CACHE}
-  dependencies:
-    - tofu:plan
+  needs:
+    - job: build
+    - job: tofu:plan
+      artifacts: true
 
 secret_detection:
   stage: .post
