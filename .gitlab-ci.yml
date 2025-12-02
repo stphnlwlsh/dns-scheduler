@@ -66,6 +66,7 @@ build:
     - gcloud config set project $GCP_PROJECT_ID
     - gcloud auth login --cred-file=/tmp/credential-config.json
     - gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet
+    - gcloud artifacts repositories create dns-scheduler-repo --repository-format=docker --location=${GCP_REGION} --project=${GCP_PROJECT_ID} || true
   script:
     - echo "IMAGE_TAG=${CI_COMMIT_SHORT_SHA}" >> build.env
     - docker build -t "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${CI_COMMIT_SHORT_SHA}" .
