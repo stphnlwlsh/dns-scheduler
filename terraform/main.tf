@@ -20,6 +20,7 @@ variable "image_tag" {
   type        = string
 }
 
+
 variable "nextdns_profile_id" {
   description = "NextDNS Profile ID"
   type        = string
@@ -77,15 +78,30 @@ resource "google_cloud_run_v2_service" "default" {
       image = "${var.region}-docker.pkg.dev/${var.project_id}/dns-scheduler-repo/dns-scheduler:${var.image_tag}"
       env {
         name  = "NEXTDNS_PROFILE_ID"
-        value = var.nextdns_profile_id
+        valueFrom {
+          secretKeyRef {
+            secret = "NEXTDNS_PROFILE_ID"
+            key = "latest"
+          }
+        }
       }
       env {
         name  = "NEXTDNS_API_KEY"
-        value = var.nextdns_api_key
+        valueFrom {
+          secretKeyRef {
+            secret = "NEXTDNS_API_KEY"
+            key = "latest"
+          }
+        }
       }
       env {
         name  = "NEXTDNS_PROFILE_ID_2"
-        value = var.nextdns_profile_id_2
+        valueFrom {
+          secretKeyRef {
+            secret = "NEXTDNS_PROFILE_ID_2"
+            key = "latest"
+          }
+        }
       }
     }
   }

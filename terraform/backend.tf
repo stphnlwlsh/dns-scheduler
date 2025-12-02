@@ -9,8 +9,8 @@ terraform {
       version = "~> 3.2"
     }
   }
-  backend "http" {
-    # Configuration will be provided via environment variables or CLI flags
-    # This allows for flexible configuration in different environments
+  backend "gcs" {
+    bucket = "cwaw-prod-67f8c561-tfstate"
+    prefix = "terraform/state"
   }
 }

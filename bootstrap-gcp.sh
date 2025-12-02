@@ -22,6 +22,8 @@ gcloud services enable cloudscheduler.googleapis.com \
   --project=${GCP_PROJECT_ID}
 gcloud services enable cloudbuild.googleapis.com \
   --project=${GCP_PROJECT_ID}
+gcloud services enable secretmanager.googleapis.com \
+  --project=${GCP_PROJECT_ID}
 
 # 2. Create GCS bucket for Terraform state (if it doesn't exist)
 echo "Checking for Terraform state bucket..."
@@ -67,5 +69,10 @@ gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_CLOUD_BUILD_SA}" \
   --role="roles/storage.admin"
+
+# Role for accessing secrets
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
+  --member="serviceAccount:${GCP_CLOUD_BUILD_SA}" \
+  --role="roles/secretmanager.secretAccessor"
 
 echo "Bootstrap complete!"

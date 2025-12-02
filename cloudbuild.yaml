@@ -1,0 +1,85 @@
+steps:
+  # 1. Build and push the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${SHORT_SHA}'
+      - '.'
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${SHORT_SHA}'
+
+  # 2. Install OpenTofu
+  - name: 'alpine'
+    id: install-tofu
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        apk add --no-cache curl unzip
+        curl -L https://github.com/opentofu/opentofu/releases/download/v1.8.4/tofu_1.8.4_linux_amd64.zip -o tofu.zip
+        unzip -o tofu.zip
+        mv tofu /usr/local/bin/tofu
+        chmod +x /usr/local/bin/tofu
+
+  # 3. Terraform Validate
+  - name: 'hashicorp/terraform:1.8.4'
+    id: validate
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        cd terraform
+        tofu init
+        tofu validate
+        tofu fmt -check
+    waitFor:
+      - install-tofu
+
+  # 4. Terraform Plan
+  - name: 'hashicorp/terraform:1.8.4'
+    id: plan
+    entrypoint: 'sh'
+    secretEnv:
+      - 'NEXTDNS_API_KEY'
+      - 'NEXTDNS_PROFILE_ID'
+      - 'NEXTDNS_PROFILE_ID_2'
+    args:
+      - '-c'
+      - |
+        cd terraform
+        tofu init
+        tofu plan -var="image_tag=${SHORT_SHA}" -var="nextdns_api_key=$NEXTDNS_API_KEY" -var="nextdns_profile_id=$NEXTDNS_PROFILE_ID" -var="nextdns_profile_id_2=$NEXTDNS_PROFILE_ID_2" -out=plan.cache
+    waitFor:
+      - validate
+
+  # 5. Manual Approval for Deploy
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'wait-for-approval'
+    args: ['builds', 'approve', '$BUILD_ID']
+    waitFor:
+      - plan
+
+  # 6. Terraform Deploy
+  - name: 'hashicorp/terraform:1.8.4'
+    id: deploy
+    entrypoint: 'sh'
+    secretEnv:
+      - 'NEXTDNS_API_KEY'
+      - 'NEXTDNS_PROFILE_ID'
+      - 'NEXTDNS_PROFILE_ID_2'
+    args:
+      - '-c'
+      - |
+        cd terraform
+        tofu init
+        tofu apply plan.cache
+    waitFor:
+      - wait-for-approval
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${SHORT_SHA}'
