@@ -44,8 +44,8 @@ fi
 # 4. Grant IAM permissions to the service account
 echo "Granting IAM permissions..."
 
-# Artifact Registry Writer
-gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL_CI}" --role="roles/artifactregistry.writer"
+# Artifact Registry Admin
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL_CI}" --role="roles/artifactregistry.admin"
 
 # Cloud Run Admin
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL_CI}" --role="roles/run.admin"
@@ -56,14 +56,6 @@ gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccoun
 # Service Account Token Creator
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL_CI}" --role="roles/iam.serviceAccountTokenCreator"
 
-# Storage Admin
-gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL_CI}" --role="roles/storage.admin"
-
-# Service Usage Admin
-gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL_CI}" --role="roles/serviceusage.serviceUsageAdmin"
-
-# Cloud Functions Developer
-gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL_CI}" --role="roles/cloudfunctions.developer"
 
 # Cloud Scheduler Admin
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL_CI}" --role="roles/cloudscheduler.admin"
