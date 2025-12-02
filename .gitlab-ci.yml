@@ -95,9 +95,6 @@ tofu:plan:
     OIDC_TOKEN:
       aud: "https://iam.googleapis.com/${GCP_WORKLOAD_IDENTITY_PROVIDER}"
   script:
-    # Temporarily grant permissions to allow Terraform to destroy old resources
-    - gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}" --role="roles/storage.admin" || true
-    - gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GCP_SERVICE_ACCOUNT_EMAIL}" --role="roles/cloudfunctions.developer" || true
     - tofu init
     - tofu plan -var="image_tag=${IMAGE_TAG}" -out=${TF_PLAN_CACHE}
   artifacts:
