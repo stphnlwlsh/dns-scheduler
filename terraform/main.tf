@@ -1,3 +1,7 @@
+terraform {
+  backend "http" {}
+}
+
 provider "google" {
   project = var.project_id
   region  = var.region
@@ -12,6 +16,11 @@ variable "region" {
   description = "The GCP region"
   type        = string
   default     = "us-central1"
+}
+
+variable "image_tag" {
+  description = "The tag for the Docker image"
+  type        = string
 }
 
 variable "nextdns_profile_id" {
@@ -33,142 +42,79 @@ variable "nextdns_profile_id_2" {
   default     = ""
 }
 
-# Create archive manually
-resource "null_resource" "create_archive" {
+# Look up the Artifact Registry repository to see if it exists
+data "google_artifact_registry_repository" "repo" {
+  project       = var.project_id
+  location      = var.region
+  repository_id = "dns-scheduler-repo"
+}
+
+# This resource will only be created if the repository does not exist
+resource "time_sleep" "wait_for_repo_creation" {
+  create_duration = "1s"
+
   triggers = {
-    # Recreate if any source files change
-    always_run = timestamp()
+    repo_id = data.google_artifact_registry_repository.repo.id
   }
 
+  # This is a trick to run a command only when the data source is not found
   provisioner "local-exec" {
-    command = <<-EOT
-      set -e
-      echo "Creating function source archive..."
-      cd ..
-      # Remove existing zip if it exists
-      rm -f terraform/dns-scheduler.zip
-      # Create new zip with Go source files and dependencies
-      zip -r terraform/dns-scheduler.zip function.go go.mod go.sum -x 'terraform/*' '.git/*'
-      echo "Archive created successfully:"
-      ls -la terraform/dns-scheduler.zip
+    command = <<EOT
+      if [ -z "${data.google_artifact_registry_repository.repo.id}" ]; then
+        gcloud artifacts repositories create dns-scheduler-repo \
+          --project=${var.project_id} \
+          --location=${var.region} \
+          --repository-format=docker
+      fi
     EOT
   }
 }
 
-# Storage bucket for Cloud Function source code
-resource "google_storage_bucket" "function_source" {
-  name     = "${var.project_id}-dns-scheduler-source"
+resource "google_cloud_run_v2_service" "default" {
+  name     = "dns-scheduler"
   location = var.region
+  project  = var.project_id
 
-  uniform_bucket_level_access = true
-
-  lifecycle_rule {
-    condition {
-      age = 30
-    }
-    action {
-      type = "Delete"
-    }
-  }
-}
-
-# Upload the source code to the bucket
-resource "google_storage_bucket_object" "source" {
-  name       = "dns-scheduler-${formatdate("YYYY-MM-DD-hhmm", timestamp())}.zip"
-  bucket     = google_storage_bucket.function_source.name
-  source     = "./dns-scheduler.zip"
-  depends_on = [null_resource.create_archive]
-}
-
-# Cloud Function for enabling social networks blocking
-resource "google_cloudfunctions2_function" "enable_social_networks" {
-  name     = "dns-scheduler-enable"
-  location = var.region
-
-  build_config {
-    runtime     = "go125"
-    entry_point = "EnableSocialNetworks"
-
-    source {
-      storage_source {
-        bucket = google_storage_bucket.function_source.name
-        object = google_storage_bucket_object.source.name
+  template {
+    containers {
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/dns-scheduler-repo/dns-scheduler:${var.image_tag}"
+      env {
+        name  = "NEXTDNS_PROFILE_ID"
+        value = var.nextdns_profile_id
+      }
+      env {
+        name  = "NEXTDNS_API_KEY"
+        value = var.nextdns_api_key
+      }
+      env {
+        name  = "NEXTDNS_PROFILE_ID_2"
+        value = var.nextdns_profile_id_2
       }
     }
   }
 
-  service_config {
-    max_instance_count = 1
-    available_memory   = "128Mi"
-    timeout_seconds    = 60
-
-    environment_variables = {
-      NEXTDNS_PROFILE_ID   = var.nextdns_profile_id
-      NEXTDNS_PROFILE_ID_2 = var.nextdns_profile_id_2
-      NEXTDNS_API_KEY      = var.nextdns_api_key
-    }
-  }
+  depends_on = [time_sleep.wait_for_repo_creation]
 }
 
-# Cloud Function for disabling social networks blocking
-resource "google_cloudfunctions2_function" "disable_social_networks" {
-  name     = "dns-scheduler-disable"
-  location = var.region
-
-  build_config {
-    runtime     = "go125"
-    entry_point = "DisableSocialNetworks"
-
-    source {
-      storage_source {
-        bucket = google_storage_bucket.function_source.name
-        object = google_storage_bucket_object.source.name
-      }
-    }
-  }
-
-  service_config {
-    max_instance_count = 1
-    available_memory   = "128Mi"
-    timeout_seconds    = 60
-
-    environment_variables = {
-      NEXTDNS_PROFILE_ID   = var.nextdns_profile_id
-      NEXTDNS_PROFILE_ID_2 = var.nextdns_profile_id_2
-      NEXTDNS_API_KEY      = var.nextdns_api_key
-    }
-  }
+resource "google_cloud_run_service_iam_member" "public_access" {
+  location = google_cloud_run_v2_service.default.location
+  service  = google_cloud_run_v2_service.default.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
 
-# Cloud Function for toggling social networks blocking (publicly accessible for iOS app)
-resource "google_cloudfunctions2_function" "toggle_social_networks" {
-  name     = "dns-scheduler-toggle"
-  location = var.region
+# Service account for Cloud Scheduler
+resource "google_service_account" "scheduler" {
+  account_id   = "dns-scheduler-invoker"
+  display_name = "DNS Scheduler Invoker"
+}
 
-  build_config {
-    runtime     = "go125"
-    entry_point = "ToggleSocialNetworks"
-
-    source {
-      storage_source {
-        bucket = google_storage_bucket.function_source.name
-        object = google_storage_bucket_object.source.name
-      }
-    }
-  }
-
-  service_config {
-    max_instance_count = 1
-    available_memory   = "128Mi"
-    timeout_seconds    = 60
-    ingress_settings   = "ALLOW_ALL"
-
-    environment_variables = {
-      NEXTDNS_PROFILE_ID   = var.nextdns_profile_id
-      NEXTDNS_PROFILE_ID_2 = var.nextdns_profile_id_2
-      NEXTDNS_API_KEY      = var.nextdns_api_key
-    }
-  }
+# IAM policy to allow scheduler to invoke Cloud Run
+resource "google_cloud_run_service_iam_member" "scheduler_invoker" {
+  location = google_cloud_run_v2_service.default.location
+  service  = google_cloud_run_v2_service.default.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.scheduler.email}"
 }
 
 # Cloud Scheduler job to enable social networks blocking at 8:30 PM CT
@@ -181,7 +127,7 @@ resource "google_cloud_scheduler_job" "enable_social_networks" {
 
   http_target {
     http_method = "GET"
-    uri         = google_cloudfunctions2_function.enable_social_networks.service_config[0].uri
+    uri         = "${google_cloud_run_v2_service.default.uri}/enable"
 
     oidc_token {
       service_account_email = google_service_account.scheduler.email
@@ -199,7 +145,7 @@ resource "google_cloud_scheduler_job" "disable_social_networks" {
 
   http_target {
     http_method = "GET"
-    uri         = google_cloudfunctions2_function.disable_social_networks.service_config[0].uri
+    uri         = "${google_cloud_run_v2_service.default.uri}/disable"
 
     oidc_token {
       service_account_email = google_service_account.scheduler.email
@@ -207,73 +153,24 @@ resource "google_cloud_scheduler_job" "disable_social_networks" {
   }
 }
 
-# Service account for Cloud Scheduler
-resource "google_service_account" "scheduler" {
-  account_id   = "dns-scheduler"
-  display_name = "DNS Scheduler Service Account"
-}
-
-# IAM policy to allow scheduler to invoke Cloud Functions
-resource "google_cloud_run_service_iam_member" "enable_invoker" {
-  service  = google_cloudfunctions2_function.enable_social_networks.name
-  location = google_cloudfunctions2_function.enable_social_networks.location
-  role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.scheduler.email}"
-}
-
-resource "google_cloud_run_service_iam_member" "disable_invoker" {
-  service  = google_cloudfunctions2_function.disable_social_networks.name
-  location = google_cloudfunctions2_function.disable_social_networks.location
-  role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.scheduler.email}"
-}
-
-# Allow public access to toggle function for iOS app integration
-resource "google_cloud_run_service_iam_member" "toggle_public_invoker" {
-  service  = google_cloudfunctions2_function.toggle_social_networks.name
-  location = google_cloudfunctions2_function.toggle_social_networks.location
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
-
 # Enable required APIs
-resource "google_project_service" "cloudfunctions" {
-  service = "cloudfunctions.googleapis.com"
-}
-
-resource "google_project_service" "cloudrun" {
+resource "google_project_service" "run" {
   service = "run.googleapis.com"
 }
 
-resource "google_project_service" "cloudscheduler" {
-  service = "cloudscheduler.googleapis.com"
+resource "google_project_service" "artifactregistry" {
+  service = "artifactregistry.googleapis.com"
 }
 
 resource "google_project_service" "cloudbuild" {
   service = "cloudbuild.googleapis.com"
 }
 
-# Note: Cloud Build Service Account role needs to be granted manually
-# Run this command manually if function builds fail:
-# gcloud projects add-iam-policy-binding PROJECT_ID --member="serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com" --role="roles/cloudbuild.builds.builder"
-
-# Outputs
-output "enable_function_url" {
-  description = "URL of the enable function"
-  value       = google_cloudfunctions2_function.enable_social_networks.service_config[0].uri
+resource "google_project_service" "cloudscheduler" {
+  service = "cloudscheduler.googleapis.com"
 }
 
-output "disable_function_url" {
-  description = "URL of the disable function"
-  value       = google_cloudfunctions2_function.disable_social_networks.service_config[0].uri
-}
-
-output "toggle_function_url" {
-  description = "URL of the toggle function"
-  value       = google_cloudfunctions2_function.toggle_social_networks.service_config[0].uri
-}
-
-output "schedule_summary" {
-  description = "Summary of the blocking schedule"
-  value       = "Social networks blocked from 8:30 PM to 8:00 AM Central Time"
+output "service_url" {
+  description = "URL of the Cloud Run service"
+  value       = google_cloud_run_v2_service.default.uri
 }

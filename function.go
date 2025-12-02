@@ -1,4 +1,4 @@
-package function
+package main
 
 import (
 	"bytes"
@@ -9,14 +9,21 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
 
-func init() {
-	functions.HTTP("EnableSocialNetworks", EnableSocialNetworks)
-	functions.HTTP("DisableSocialNetworks", DisableSocialNetworks)
-	functions.HTTP("ToggleSocialNetworks", ToggleSocialNetworks)
+func main() {
+	http.HandleFunc("/enable", EnableSocialNetworks)
+	http.HandleFunc("/disable", DisableSocialNetworks)
+	http.HandleFunc("/toggle", ToggleSocialNetworks)
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	log.Printf("Listening on port %s", port)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatal(err)
+	}
 }
 
 const nextDNSAPIURL = "https://api.nextdns.io"
