@@ -42,32 +42,12 @@ variable "nextdns_profile_id_2" {
   default     = ""
 }
 
-# Look up the Artifact Registry repository to see if it exists
-data "google_artifact_registry_repository" "repo" {
+# Create the Artifact Registry repository
+resource "google_artifact_registry_repository" "repo" {
   project       = var.project_id
   location      = var.region
   repository_id = "dns-scheduler-repo"
-}
-
-# This resource will only be created if the repository does not exist
-resource "time_sleep" "wait_for_repo_creation" {
-  create_duration = "1s"
-
-  triggers = {
-    repo_id = data.google_artifact_registry_repository.repo.id
-  }
-
-  # This is a trick to run a command only when the data source is not found
-  provisioner "local-exec" {
-    command = <<EOT
-      if [ -z "${data.google_artifact_registry_repository.repo.id}" ]; then
-        gcloud artifacts repositories create dns-scheduler-repo \
-          --project=${var.project_id} \
-          --location=${var.region} \
-          --repository-format=docker
-      fi
-    EOT
-  }
+  format        = "DOCKER"
 }
 
 resource "google_cloud_run_v2_service" "default" {
@@ -93,7 +73,7 @@ resource "google_cloud_run_v2_service" "default" {
     }
   }
 
-  depends_on = [time_sleep.wait_for_repo_creation]
+  depends_on = [google_artifact_registry_repository.repo]
 }
 
 resource "google_cloud_run_service_iam_member" "public_access" {
