@@ -14,6 +14,19 @@ GITLAB_PROJECT_PATH="connectwithawalsh/dns-scheduler" # Update this to your GitL
 
 echo "Setting up Workload Identity Federation for project: ${GCP_PROJECT_ID}"
 
+# 1. Enable GCP APIs
+echo "Enabling required GCP APIs..."
+gcloud services enable iamcredentials.googleapis.com \
+  --project=${GCP_PROJECT_ID}
+gcloud services enable artifactregistry.googleapis.com \
+  --project=${GCP_PROJECT_ID}
+gcloud services enable run.googleapis.com \
+  --project=${GCP_PROJECT_ID}
+gcloud services enable cloudscheduler.googleapis.com \
+  --project=${GCP_PROJECT_ID}
+gcloud services enable cloudbuild.googleapis.com \
+  --project=${GCP_PROJECT_ID}
+
 # 1. Create Workload Identity Pool
 echo "Creating Workload Identity Pool..."
 gcloud iam workload-identity-pools create ${GCP_POOL_ID} --project=${GCP_PROJECT_ID} --location=global --display-name="GitLab Pool" --description="Workload Identity Pool for GitLab CI/CD" ||
