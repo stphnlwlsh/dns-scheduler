@@ -89,6 +89,12 @@ gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
 # Role for writing logs
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+
   --role="roles/logging.logWriter" --condition=None
+
+# Role for approving its own builds
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/cloudbuild.buildApprover" --condition=None
 
 echo "Bootstrap complete!"
