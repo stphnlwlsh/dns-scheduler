@@ -53,7 +53,8 @@ steps:
   # 4. Manual Approval for Deploy
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'wait-for-approval'
-    args: ['builds', 'approve', '$BUILD_ID']
+    entrypoint: 'gcloud'
+    args: ['alpha', 'builds', 'approve', '$BUILD_ID', '--region=${_REGION}']
     waitFor:
       - plan
 
