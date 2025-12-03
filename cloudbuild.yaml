@@ -54,7 +54,7 @@ steps:
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'wait-for-approval'
     entrypoint: 'gcloud'
-    args: ['alpha', 'builds', 'approve', '$BUILD_ID', '--region=${_REGION}']
+    args: ['alpha', 'builds', 'approve', '$BUILD_ID']
     waitFor:
       - plan
 
