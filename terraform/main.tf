@@ -68,12 +68,6 @@ resource "time_sleep" "wait_for_repo_creation" {
   }
 }
 
-# Grant the runtime service account permission to access secrets
-resource "google_project_iam_member" "secret_accessor" {
-  project = var.project_id
-  role    = "roles/secretmanager.secretAccessor"
-  member  = "serviceAccount:dns-scheduler@${var.project_id}.iam.gserviceaccount.com"
-}
 
 resource "google_cloud_run_v2_service" "default" {
   name     = "dns-scheduler"
