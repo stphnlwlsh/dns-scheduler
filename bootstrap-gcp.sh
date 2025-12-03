@@ -37,42 +37,53 @@ else
   echo "Terraform state bucket already exists."
 fi
 
-# 3. Grant Cloud Build service account necessary IAM roles
-GCP_PROJECT_NUMBER=$(gcloud projects describe ${GCP_PROJECT_ID} --format='value(projectNumber)')
-GCP_CLOUD_BUILD_SA="${GCP_PROJECT_NUMBER}@cloudbuild.gserviceaccount.com"
+# 3. Create a dedicated service account for Cloud Build (if it doesn't exist)
+GCP_BUILDER_SA_NAME="dns-scheduler-builder"
+GCP_BUILDER_SA_EMAIL="${GCP_BUILDER_SA_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
 
-echo "Granting IAM roles to Cloud Build service account: ${GCP_CLOUD_BUILD_SA}"
+echo "Checking for Cloud Build service account..."
+if ! gcloud iam service-accounts describe ${GCP_BUILDER_SA_EMAIL} --project=${GCP_PROJECT_ID} &>/dev/null; then
+  echo "Creating dedicated service account for Cloud Build: ${GCP_BUILDER_SA_NAME}"
+  gcloud iam service-accounts create ${GCP_BUILDER_SA_NAME} \
+    --project=${GCP_PROJECT_ID} \
+    --display-name="DNS Scheduler Builder"
+else
+  echo "Cloud Build service account already exists."
+fi
+
+# 4. Grant the new service account necessary IAM roles
+echo "Granting IAM roles to Cloud Build service account: ${GCP_BUILDER_SA_EMAIL}"
 
 # Roles for deploying Cloud Run, managing Artifact Registry, and Cloud Scheduler
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-  --member="serviceAccount:${GCP_CLOUD_BUILD_SA}" \
-  --role="roles/run.admin"
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/run.admin" --condition=None
 
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-  --member="serviceAccount:${GCP_CLOUD_BUILD_SA}" \
-  --role="roles/artifactregistry.admin"
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/artifactregistry.admin" --condition=None
 
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-  --member="serviceAccount:${GCP_CLOUD_BUILD_SA}" \
-  --role="roles/cloudscheduler.admin"
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/cloudscheduler.admin" --condition=None
 
 # Roles for managing service accounts (for the scheduler) and their permissions
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-  --member="serviceAccount:${GCP_CLOUD_BUILD_SA}" \
-  --role="roles/iam.serviceAccountAdmin"
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/iam.serviceAccountAdmin" --condition=None
 
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-  --member="serviceAccount:${GCP_CLOUD_BUILD_SA}" \
-  --role="roles/iam.serviceAccountUser"
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/iam.serviceAccountUser" --condition=None
 
 # Role for managing Terraform state in the GCS bucket
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-  --member="serviceAccount:${GCP_CLOUD_BUILD_SA}" \
-  --role="roles/storage.admin"
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/storage.admin" --condition=None
 
 # Role for accessing secrets
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-  --member="serviceAccount:${GCP_CLOUD_BUILD_SA}" \
-  --role="roles/secretmanager.secretAccessor"
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/secretmanager.secretAccessor" --condition=None
 
 echo "Bootstrap complete!"
