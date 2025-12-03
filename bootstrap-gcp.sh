@@ -2,17 +2,9 @@
 # ==============================================================================
 # Bootstrap Script for dns-scheduler CI/CD
 #
-# This script performs the one-time setup required to allow Google Cloud Build
-# to deploy the application. It handles the "chicken-and-egg" problem where
-# the CI/CD service account needs permissions *before* it can run Terraform.
-#
-# Why are these permissions here and not in Terraform?
-# The Cloud Build service account's own permissions cannot be managed by a
-# Terraform configuration that it is responsible for applying. Therefore, its
-# core permissions must be granted here, "out-of-band."
-#
-# All other application-specific IAM roles (e.g., for the Cloud Scheduler)
-# are correctly defined and managed within the Terraform configuration.
+# This script performs the one-time setup required to handle the
+# "chicken-and-egg" problem where required infrastructure is not available to
+# Terraform the infrastructure.
 #
 # USAGE:
 # ./bootstrap-gcp.sh
@@ -24,26 +16,12 @@ GCP_PROJECT_ID="cwaw-prod-67f8c561"
 GCP_REGION="us-central1"
 TF_STATE_BUCKET="${GCP_PROJECT_ID}-tfstate"
 
-echo "Bootstrapping CI/CD environment for project: ${GCP_PROJECT_ID}"
+echo "Bootstrapping project environment for project: ${GCP_PROJECT_ID}"
 
 # 1. Enable GCP APIs
 echo "Enabling required GCP APIs..."
-gcloud services enable iam.googleapis.com \
-  --project=${GCP_PROJECT_ID}
-gcloud services enable iamcredentials.googleapis.com \
-  --project=${GCP_PROJECT_ID}
-gcloud services enable artifactregistry.googleapis.com \
-  --project=${GCP_PROJECT_ID}
-gcloud services enable run.googleapis.com \
-  --project=${GCP_PROJECT_ID}
-gcloud services enable cloudscheduler.googleapis.com \
-  --project=${GCP_PROJECT_ID}
-gcloud services enable clouddeploy.googleapis.com \
-  --project=${GCP_PROJECT_ID}
-gcloud services enable cloudbuild.googleapis.com \
-  --project=${GCP_PROJECT_ID}
-gcloud services enable secretmanager.googleapis.com \
-  --project=${GCP_PROJECT_ID}
+gcloud services enable config.googleapis.com
+gcloud services enable clouddeploy.googleapis.com
 
 # 2. Create GCS bucket for Terraform state (if it doesn't exist)
 echo "Checking for Terraform state bucket..."
@@ -73,67 +51,86 @@ fi
 
 # 4. Grant the new service account necessary IAM roles
 echo "Granting IAM roles to Cloud Build service account: ${GCP_BUILDER_SA_EMAIL}"
-
-# Roles for deploying Cloud Run, managing Artifact Registry, and Cloud Scheduler
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
-  --role="roles/run.admin" --condition=None
+  --role="roles/artifactregistry.repoAdmin" --condition=None
 
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
-  --role="roles/artifactregistry.admin" --condition=None
+  --role="roles/config.agent" --condition=None
+
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/clouddeploy.operator" --condition=None
 
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
   --role="roles/cloudscheduler.admin" --condition=None
 
-# Roles for managing service accounts (for the scheduler) and their permissions
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
   --role="roles/iam.serviceAccountAdmin" --condition=None
 
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
-  --role="roles/iam.serviceAccountUser" --condition=None
-
-# Role for managing Terraform state in the GCS bucket
-gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
-  --role="roles/storage.admin" --condition=None
-
-# Role for accessing secrets
-gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
-  --role="roles/secretmanager.secretAccessor" --condition=None
-
-# Role for writing logs
-gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
   --role="roles/logging.logWriter" --condition=None
 
-# Role for creating Cloud Deploy releases
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
-  --role="roles/clouddeploy.releaser" --condition=None
+  --role="roles/privilegedaccessmanager.projectServiceAgent" --condition=None
 
-# Role for accessing the Cloud Deploy pipeline
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
-  --role="roles/clouddeploy.developer" --condition=None
-
-# Grant the default compute service account the necessary roles for Cloud Deploy
-GCP_PROJECT_NUMBER=$(gcloud projects describe ${GCP_PROJECT_ID} --format='value(projectNumber)')
-GCP_COMPUTE_SA="${GCP_PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
-
-echo "Granting IAM roles to the default compute service account for Cloud Deploy: ${GCP_COMPUTE_SA}"
+  --role="roles/resourcemanager.projectIamAdmin" --condition=None
 
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-  --member="serviceAccount:${GCP_COMPUTE_SA}" \
-  --role="roles/clouddeploy.jobRunner" --condition=None
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/run.developer" --condition=None
 
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-  --member="serviceAccount:${GCP_COMPUTE_SA}" \
-  --role="roles/run.admin" --condition=None
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/run.serviceAgent" --condition=None
+
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/secretmanager.admin" --condition=None
+
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/iam.serviceAccountTokenCreator" --condition=None
+
+# gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
+#   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+#   --role="roles/artifactregistry.admin" --condition=None
+#
+# gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
+#   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+#   --role="roles/iam.serviceAccountUser" --condition=None
+#
+# # Role for managing Terraform state in the GCS bucket
+# gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
+#   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+#   --role="roles/storage.admin" --condition=None
+#
+
+echo "Bootstraping secrets"
+if ! gcloud secrets describe NEXTDNS_API_KEY --project=${GCP_PROJECT_ID} &>/dev/null; then
+  gcloud secrets create NEXTDNS_API_KEY
+else
+  echo "Secret NEXTDNS_API_KEY already exists."
+fi
+
+if ! gcloud secrets describe NEXTDNS_PROFILE_ID --project=${GCP_PROJECT_ID} &>/dev/null; then
+  gcloud secrets create NEXTDNS_PROFILE_ID
+else
+  echo "Secret NEXTDNS_PROFILE_ID already exists."
+fi
+
+if ! gcloud secrets describe NEXTDNS_PROFILE_ID_2 --project=${GCP_PROJECT_ID} &>/dev/null; then
+  gcloud secrets create NEXTDNS_PROFILE_ID_2
+else
+  echo "Secret NEXTDNS_PROFILE_ID_2 already exists."
+fi
 
 echo "Bootstrap complete!"
 
@@ -141,11 +138,10 @@ echo ""
 echo "================================================================================"
 echo "  IMPORTANT: MANUAL STEP REQUIRED"
 echo ""
-echo "  The Cloud Run service needs permission to access secrets at runtime."
-echo "  Run the following command once to grant this permission:"
+echo "  Secret Manager Secrets are now bootstrapped."
+echo "  Run the below commands with production values from local to set verison 1."
+echo "  echo -n \"placeholder\" | gcloud secrets create NEXTDNS_API_KEY --data-file=-"
+echo "  echo -n \"placeholder\" | gcloud secrets create NEXTDNS_PROFILE_ID --data-file=-"
+echo "  echo -n \"placeholder\" | gcloud secrets create NEXTDNS_PROFILE_ID_2 --data-file=-"
 echo ""
-echo "  gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \\"
-echo "    --member=\"serviceAccount:dns-scheduler@${GCP_PROJECT_ID}.iam.gserviceaccount.com\" \\"
-echo "    --role=\"roles/secretmanager.secretAccessor\" \\"
-echo "    --condition=None"
 echo "================================================================================"
