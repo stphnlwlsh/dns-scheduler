@@ -1,0 +1,26 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: dns-scheduler
+spec:
+  template:
+    spec:
+      serviceAccountName: dns-scheduler@${PROJECT_ID}.iam.gserviceaccount.com
+      containers:
+      - image: dns-scheduler
+        env:
+        - name: NEXTDNS_PROFILE_ID
+          valueFrom:
+            secretKeyRef:
+              name: NEXTDNS_PROFILE_ID
+              key: latest
+        - name: NEXTDNS_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: NEXTDNS_API_KEY
+              key: latest
+        - name: NEXTDNS_PROFILE_ID_2
+          valueFrom:
+            secretKeyRef:
+              name: NEXTDNS_PROFILE_ID_2
+              key: latest

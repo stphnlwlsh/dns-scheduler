@@ -69,47 +69,47 @@ resource "time_sleep" "wait_for_repo_creation" {
 }
 
 
-resource "google_cloud_run_v2_service" "default" {
-  name     = "dns-scheduler"
-  location = var.region
+# Cloud Deploy Delivery Pipeline
+resource "google_clouddeploy_delivery_pipeline" "pipeline" {
   project  = var.project_id
+  location = var.region
+  name     = "dns-scheduler-pipeline"
 
-  template {
-    service_account = "dns-scheduler@${var.project_id}.iam.gserviceaccount.com"
-    containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/dns-scheduler-repo/dns-scheduler:${var.image_tag}"
-      env {
-        name = "NEXTDNS_PROFILE_ID"
-        value_source {
-          secret_key_ref {
-            secret  = "NEXTDNS_PROFILE_ID"
-            version = "latest"
-          }
-        }
-      }
-      env {
-        name = "NEXTDNS_API_KEY"
-        value_source {
-          secret_key_ref {
-            secret  = "NEXTDNS_API_KEY"
-            version = "latest"
-          }
-        }
-      }
-      env {
-        name = "NEXTDNS_PROFILE_ID_2"
-        value_source {
-          secret_key_ref {
-            secret  = "NEXTDNS_PROFILE_ID_2"
-            version = "latest"
-          }
-        }
-      }
+  serial_pipeline {
+    stages {
+      target_id = "prod"
     }
   }
-
-  depends_on = [time_sleep.wait_for_repo_creation]
 }
+
+# Cloud Deploy Target for Production
+resource "google_clouddeploy_target" "prod" {
+  project  = var.project_id
+  location = var.region
+  name     = "prod"
+
+  run {
+    location = "projects/${var.project_id}/locations/${var.region}"
+  }
+
+  require_approval = true
+}
+
+# Grant the Cloud Build service account permission to create Cloud Deploy releases
+resource "google_project_iam_member" "clouddeploy_releaser" {
+  project = var.project_id
+  role    = "roles/clouddeploy.releaser"
+  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}
+
+# Grant the Cloud Deploy service account permission to deploy to Cloud Run
+resource "google_project_iam_member" "clouddeploy_runner" {
+  project = var.project_id
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+}
+
+data "google_project" "project" {}
 
 resource "google_cloud_run_service_iam_member" "public_access" {
   location = google_cloud_run_v2_service.default.location
@@ -185,7 +185,11 @@ resource "google_project_service" "cloudscheduler" {
   service = "cloudscheduler.googleapis.com"
 }
 
-output "service_url" {
-  description = "URL of the Cloud Run service"
-  value       = google_cloud_run_v2_service.default.uri
+resource "google_project_service" "clouddeploy" {
+  service = "clouddeploy.googleapis.com"
+}
+
+output "delivery_pipeline_id" {
+  description = "The ID of the Cloud Deploy delivery pipeline"
+  value       = google_clouddeploy_delivery_pipeline.pipeline.uid
 }
