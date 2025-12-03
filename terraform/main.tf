@@ -68,7 +68,6 @@ resource "time_sleep" "wait_for_repo_creation" {
   }
 }
 
-
 # Cloud Deploy Delivery Pipeline
 resource "google_clouddeploy_delivery_pipeline" "pipeline" {
   project  = var.project_id
@@ -95,21 +94,58 @@ resource "google_clouddeploy_target" "prod" {
   require_approval = true
 }
 
-# Grant the Cloud Build service account permission to create Cloud Deploy releases
-resource "google_project_iam_member" "clouddeploy_releaser" {
-  project = var.project_id
-  role    = "roles/clouddeploy.releaser"
-  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+# Service account for the Cloud Run Application itself
+resource "google_service_account" "app" {
+  account_id   = "dns-scheduler"
+  display_name = "DNS Scheduler Application"
+  project      = var.project_id
 }
 
-# Grant the Cloud Deploy service account permission to deploy to Cloud Run
-resource "google_project_iam_member" "clouddeploy_runner" {
-  project = var.project_id
-  role    = "roles/run.admin"
-  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
-}
+# Define the Cloud Run service that was previously missing from the Terraform config
+resource "google_cloud_run_v2_service" "default" {
+  name     = "dns-scheduler"
+  location = var.region
+  project  = var.project_id
 
-data "google_project" "project" {}
+  template {
+    service_account = google_service_account.app.email
+    containers {
+      image = var.image_tag
+      env {
+        name = "NEXTDNS_PROFILE_ID"
+        value_source {
+          secret_key_ref {
+            secret  = "nextdns_profile_id"
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "NEXTDNS_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = "nextdns_api_key"
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name = "NEXTDNS_PROFILE_ID_2"
+        value_source {
+          secret_key_ref {
+            secret  = "nextdns_profile_id_2"
+            version = "latest"
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [
+    google_project_service.run,
+    google_service_account.app,
+  ]
+}
 
 resource "google_cloud_run_service_iam_member" "public_access" {
   location = google_cloud_run_v2_service.default.location
@@ -187,6 +223,10 @@ resource "google_project_service" "cloudscheduler" {
 
 resource "google_project_service" "clouddeploy" {
   service = "clouddeploy.googleapis.com"
+}
+
+resource "google_project_service" "secretmanager" {
+  service = "secretmanager.googleapis.com"
 }
 
 output "delivery_pipeline_id" {
