@@ -38,6 +38,8 @@ gcloud services enable run.googleapis.com \
   --project=${GCP_PROJECT_ID}
 gcloud services enable cloudscheduler.googleapis.com \
   --project=${GCP_PROJECT_ID}
+gcloud services enable clouddeploy.googleapis.com \
+  --project=${GCP_PROJECT_ID}
 gcloud services enable cloudbuild.googleapis.com \
   --project=${GCP_PROJECT_ID}
 gcloud services enable secretmanager.googleapis.com \
@@ -109,5 +111,17 @@ gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
   --role="roles/logging.logWriter" --condition=None
 
-
 echo "Bootstrap complete!"
+
+echo ""
+echo "================================================================================"
+echo "  IMPORTANT: MANUAL STEP REQUIRED"
+echo ""
+echo "  The Cloud Run service needs permission to access secrets at runtime."
+echo "  Run the following command once to grant this permission:"
+echo ""
+echo "  gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \\"
+echo "    --member=\"serviceAccount:dns-scheduler@${GCP_PROJECT_ID}.iam.gserviceaccount.com\" \\"
+echo "    --role=\"roles/secretmanager.secretAccessor\" \\"
+echo "    --condition=None"
+echo "================================================================================"

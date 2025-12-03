@@ -1,6 +1,6 @@
 # DNS Scheduler - NextDNS Social Networks Scheduler
 
-Automatically enables/disables NextDNS social networks blocking on a schedule using Google Cloud Functions and Cloud Scheduler.
+Automatically enables/disables NextDNS social networks blocking on a schedule using a containerized Go application deployed to Google Cloud Run.
 
 ## Schedule
 
@@ -11,156 +11,114 @@ This creates an 11.5-hour social media block period from evening to morning.
 
 ## Prerequisites
 
-1. **NextDNS Account**: Get your Profile ID and API Key from [NextDNS](https://my.nextdns.io)
-2. **Google Cloud Platform Account**: With billing enabled
-3. **Terraform**: For infrastructure deployment
-4. **gcloud CLI**: Configured with your GCP project
-
-## NextDNS Setup
-
-1. Log in to [NextDNS](https://my.nextdns.io)
-2. Go to your profile settings
-3. Note your **Profile ID** (in the URL: `my.nextdns.io/PROFILE_ID/setup`)
-4. Generate an **API Key** in the account settings
-
-## Deployment
-
-### 1. Clone and Configure
-
-```bash
-git clone <this-repo>
-cd dns-scheduler
-```
-
-### 2. Set up Terraform Variables
-
-```bash
-cd terraform
-cp terraform.tfvars.example terraform.tfvars
-```
-
-Edit `terraform.tfvars` with your values:
-
-```hcl
-project_id         = "your-gcp-project-id"
-region            = "us-central1"
-nextdns_profile_id = "your-nextdns-profile-id"
-nextdns_api_key   = "your-nextdns-api-key"
-```
-
-### 3. Deploy Infrastructure
-
-```bash
-terraform init
-terraform plan
-terraform apply
-```
-
-### 4. Verify Deployment
-
-After deployment completes, you'll see the function URLs in the output. You can manually test them:
-
-```bash
-# Test enabling social networks blocking
-curl "ENABLE_FUNCTION_URL"
-
-# Test disabling social networks blocking  
-curl "DISABLE_FUNCTION_URL"
-```
+1.  **NextDNS Account**: Get your Profile ID and API Key from [my.nextdns.io](https://my.nextdns.io).
+2.  **Google Cloud Platform Account**: With billing enabled.
+3.  **gcloud CLI**: Authenticated with your GCP account.
+4.  **GitLab Account**: To host the repository.
 
 ## Architecture
 
-- **2 Cloud Functions**: Enable/disable social networks blocking
-- **2 Cloud Scheduler jobs**: Trigger functions at scheduled times
-- **1 Service Account**: For scheduler to invoke functions
-- **1 Storage bucket**: For function source code
+- **Go HTTP Server**: A single containerized application that exposes `/enable`, `/disable`, and `/toggle` endpoints.
+- **Google Cloud Run**: Hosts the container and makes it accessible via a secure URL.
+- **Google Cloud Scheduler**: Two jobs that trigger the `/enable` and `/disable` endpoints on schedule.
+- **Google Cloud Build**: A CI/CD pipeline that builds the container, runs Terraform, and deploys the application.
+- **Google Secret Manager**: Securely stores the NextDNS credentials.
+- **Terraform**: Manages all the application infrastructure as code.
 
-## Manual Control
+## One-Time Setup
 
-You can manually trigger the functions:
+Before the CI/CD pipeline can run, a few one-time bootstrap steps are required.
 
-1. **Via gcloud**:
-   ```bash
-   gcloud functions call dns-scheduler-enable --region=us-central1
-   gcloud functions call dns-scheduler-disable --region=us-central1
-   ```
+### 1. Configure the Project
 
-2. **Via Cloud Console**: Navigate to Cloud Functions and test directly
+Clone the repository and `cd` into the directory. The `bootstrap-gcp.sh` script is configured with your project ID.
 
-3. **Via URL**: Use the function URLs (requires authentication)
+### 2. Run the Bootstrap Script
 
-## Cost Estimate
+This script performs the following actions:
+- Enables all required GCP APIs.
+- Creates a GCS bucket to store Terraform state.
+- Creates a dedicated service account for the Cloud Build pipeline.
+- Grants the Cloud Build service account all the necessary permissions to deploy the application.
 
-This setup should cost less than $1/month:
-- Cloud Functions: ~$0.10/month (minimal invocations)
-- Cloud Scheduler: Free tier (3 jobs/month)
-- Cloud Storage: ~$0.01/month for source code
-
-## Troubleshooting
-
-### Function fails with authentication error
-- Verify NextDNS Profile ID and API Key are correct
-- Check if your NextDNS account has API access enabled
-
-### Scheduler jobs not triggering
-- Verify timezone is set to "America/Chicago"
-- Check Cloud Scheduler logs in GCP Console
-
-### Functions timing out
-- Check if NextDNS API is responding
-- Review function logs in Cloud Console
-
-## Security Notes
-
-- API credentials are stored as environment variables in Cloud Functions
-- Functions are not publicly accessible (authentication required)
-- Scheduler uses a dedicated service account with minimal permissions
-
-## Customization
-
-### Change Schedule Times
-
-Edit the cron expressions in `terraform/main.tf`:
-
-```hcl
-# Enable at 8:30 PM CT
-schedule = "30 20 * * *"
-
-# Disable at 8:00 AM CT  
-schedule = "0 8 * * *"
+```bash
+./bootstrap-gcp.sh
 ```
 
-### Change Timezone
+### 3. Create Secrets
 
-Update the `time_zone` in the scheduler jobs:
+Store your NextDNS credentials securely in Google Secret Manager.
 
-```hcl
-time_zone = "America/Chicago"  # Central Time
+```bash
+# Replace with your actual credentials
+echo -n "YOUR_NEXTDNS_API_KEY" | gcloud secrets create NEXTDNS_API_KEY --data-file=-
+echo -n "YOUR_NEXTDNS_PROFILE_ID" | gcloud secrets create NEXTDNS_PROFILE_ID --data-file=-
+
+# Optional: If you have a second profile, create this secret
+echo -n "YOUR_NEXTDNS_PROFILE_ID_2" | gcloud secrets create NEXTDNS_PROFILE_ID_2 --data-file=-
 ```
+
+### 4. Grant Runtime Secret Access
+
+The Cloud Run service needs permission to access the secrets at runtime. Grant this permission manually one time.
+
+```bash
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+  --member="serviceAccount:dns-scheduler@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor" \
+  --condition=None
+```
+
+### 5. Connect GitLab to Cloud Build
+
+The final step is to create a Cloud Build Trigger that connects your GitLab repository to the pipeline.
+
+1.  **Navigate to Cloud Build Triggers** in the Google Cloud Console.
+2.  **Connect Repository**: Follow the prompts to link your GitLab account and select the `dns-scheduler` repository.
+3.  **Create Trigger**: Create a new trigger with the following settings:
+    - **Name**: `dns-scheduler-main`
+    - **Event**: "Push to a branch"
+    - **Branch**: `^main$`
+    - **Configuration**: "Cloud Build configuration file (yaml or json)"
+    - **Location**: `/cloudbuild.yaml`
+    - **Service account**: Select the `dns-scheduler-builder@...` account.
+    - **Approval**: Check "Require approval before executing."
+    - **Substitution Variables**:
+        - `_REGION`: `us-central1`
+
+## Deployment
+
+Once the one-time setup is complete, deployment is fully automated. Every `git push` to the `main` branch will:
+1.  Trigger the Cloud Build pipeline.
+2.  Build and push the application container to Artifact Registry.
+3.  Run `terraform plan` to calculate infrastructure changes.
+4.  **Pause and wait for manual approval** in the Google Cloud Console.
+5.  After approval, run `terraform apply` to deploy the application.
 
 ## Cleanup
 
-To remove all resources:
+To remove all deployed resources:
+1.  Navigate to the Cloud Build history in the Google Cloud Console.
+2.  Find the last successful build for your `main` branch.
+3.  Click the "Approve" button to proceed with the `destroy` plan.
 
+To remove the bootstrap resources, you can run:
 ```bash
-cd terraform
-terraform destroy
+./bootstrap-gcp.sh destroy
 ```
 
-## Development
-
-### Local Testing
+## Local Development
 
 ```bash
 # Install dependencies
 go mod tidy
 
-# Run locally (requires NextDNS credentials as env vars)
+# Run the server (requires credentials as env vars)
 export NEXTDNS_PROFILE_ID="your-profile-id"
 export NEXTDNS_API_KEY="your-api-key"
 go run .
 
 # Test endpoints
-curl "http://localhost:8080/EnableSocialNetworks"
-curl "http://localhost:8080/DisableSocialNetworks"
+curl "http://localhost:8080/enable"
+curl "http://localhost:8080/disable"
 ```
