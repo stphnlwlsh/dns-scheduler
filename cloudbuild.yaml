@@ -46,7 +46,7 @@ steps:
         unzip -o tofu.zip && mv tofu /usr/local/bin/tofu && chmod +x /usr/local/bin/tofu
         cd terraform
         tofu init
-        tofu plan -var="image_tag=${SHORT_SHA}" -var="nextdns_api_key=$$NEXTDNS_API_KEY" -var="nextdns_profile_id=$$NEXTDNS_PROFILE_ID" -var="nextdns_profile_id_2=$$NEXTDNS_PROFILE_ID_2" -out=plan.cache
+        tofu plan -var="project_id=${PROJECT_ID}" -var="image_tag=${SHORT_SHA}" -var="nextdns_api_key=$$NEXTDNS_API_KEY" -var="nextdns_profile_id=$$NEXTDNS_PROFILE_ID" -var="nextdns_profile_id_2=$$NEXTDNS_PROFILE_ID_2" -out=plan.cache
     waitFor:
       - validate
 
