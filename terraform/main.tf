@@ -77,29 +77,29 @@ resource "google_cloud_run_v2_service" "default" {
     containers {
       image = "${var.region}-docker.pkg.dev/${var.project_id}/dns-scheduler-repo/dns-scheduler:${var.image_tag}"
       env {
-        name  = "NEXTDNS_PROFILE_ID"
-        valueFrom {
-          secretKeyRef {
-            secret = "NEXTDNS_PROFILE_ID"
-            key = "latest"
+        name = "NEXTDNS_PROFILE_ID"
+        value_source {
+          secret_key_ref {
+            secret  = "NEXTDNS_PROFILE_ID"
+            version = "latest"
           }
         }
       }
       env {
-        name  = "NEXTDNS_API_KEY"
-        valueFrom {
-          secretKeyRef {
-            secret = "NEXTDNS_API_KEY"
-            key = "latest"
+        name = "NEXTDNS_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = "NEXTDNS_API_KEY"
+            version = "latest"
           }
         }
       }
       env {
-        name  = "NEXTDNS_PROFILE_ID_2"
-        valueFrom {
-          secretKeyRef {
-            secret = "NEXTDNS_PROFILE_ID_2"
-            key = "latest"
+        name = "NEXTDNS_PROFILE_ID_2"
+        value_source {
+          secret_key_ref {
+            secret  = "NEXTDNS_PROFILE_ID_2"
+            version = "latest"
           }
         }
       }
