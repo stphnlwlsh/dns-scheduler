@@ -121,6 +121,19 @@ gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
   --role="roles/clouddeploy.developer" --condition=None
 
+# Grant the default compute service account the necessary roles for Cloud Deploy
+GCP_COMPUTE_SA="${GCP_PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
+echo "Granting IAM roles to the default compute service account for Cloud Deploy: ${GCP_COMPUTE_SA}"
+
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
+  --member="serviceAccount:${GCP_COMPUTE_SA}" \
+  --role="roles/clouddeploy.jobRunner" --condition=None
+
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
+  --member="serviceAccount:${GCP_COMPUTE_SA}" \
+  --role="roles/run.admin" --condition=None
+
 echo "Bootstrap complete!"
 
 echo ""
