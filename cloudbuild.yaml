@@ -83,3 +83,12 @@ images:
 options:
   logging: CLOUD_LOGGING_ONLY
 
+availableSecrets:
+  secretManager:
+  - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_API_KEY/versions/latest
+    env: 'NEXTDNS_API_KEY'
+  - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_PROFILE_ID/versions/latest
+    env: 'NEXTDNS_PROFILE_ID'
+  - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_PROFILE_ID_2/versions/latest
+    env: 'NEXTDNS_PROFILE_ID_2'
+
