@@ -1,4 +1,22 @@
 #!/bin/bash
+# ==============================================================================
+# Bootstrap Script for dns-scheduler CI/CD
+#
+# This script performs the one-time setup required to allow Google Cloud Build
+# to deploy the application. It handles the "chicken-and-egg" problem where
+# the CI/CD service account needs permissions *before* it can run Terraform.
+#
+# Why are these permissions here and not in Terraform?
+# The Cloud Build service account's own permissions cannot be managed by a
+# Terraform configuration that it is responsible for applying. Therefore, its
+# core permissions must be granted here, "out-of-band."
+#
+# All other application-specific IAM roles (e.g., for the Cloud Scheduler)
+# are correctly defined and managed within the Terraform configuration.
+#
+# USAGE:
+# ./bootstrap-gcp.sh
+# ==============================================================================
 set -e
 
 # Configuration
