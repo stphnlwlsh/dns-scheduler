@@ -13,35 +13,25 @@ steps:
       - 'push'
       - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${SHORT_SHA}'
 
-  # 2. Install OpenTofu
+  # 2. Terraform Validate
   - name: 'alpine'
-    id: install-tofu
+    id: validate
     entrypoint: 'sh'
     args:
       - '-c'
       - |
         apk add --no-cache curl unzip
         curl -L https://github.com/opentofu/opentofu/releases/download/v1.8.4/tofu_1.8.4_linux_amd64.zip -o tofu.zip
-        unzip -o tofu.zip
-        mv tofu /usr/local/bin/tofu
-        chmod +x /usr/local/bin/tofu
-
-  # 3. Terraform Validate
-  - name: 'hashicorp/terraform:1.8.4'
-    id: validate
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
+        unzip -o tofu.zip && mv tofu /usr/local/bin/tofu && chmod +x /usr/local/bin/tofu
         cd terraform
         tofu init
         tofu validate
         tofu fmt -check
     waitFor:
-      - install-tofu
+      - push
 
-# 4. Terraform Plan
-  - name: 'hashicorp/terraform:1.8.4'
+  # 3. Terraform Plan
+  - name: 'alpine'
     id: plan
     entrypoint: 'sh'
     secretEnv:
@@ -51,21 +41,24 @@ steps:
     args:
       - '-c'
       - |
+        apk add --no-cache curl unzip
+        curl -L https://github.com/opentofu/opentofu/releases/download/v1.8.4/tofu_1.8.4_linux_amd64.zip -o tofu.zip
+        unzip -o tofu.zip && mv tofu /usr/local/bin/tofu && chmod +x /usr/local/bin/tofu
         cd terraform
         tofu init
         tofu plan -var="image_tag=${SHORT_SHA}" -var="nextdns_api_key=$$NEXTDNS_API_KEY" -var="nextdns_profile_id=$$NEXTDNS_PROFILE_ID" -var="nextdns_profile_id_2=$$NEXTDNS_PROFILE_ID_2" -out=plan.cache
     waitFor:
       - validate
 
-  # 5. Manual Approval for Deploy
+  # 4. Manual Approval for Deploy
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'wait-for-approval'
     args: ['builds', 'approve', '$BUILD_ID']
     waitFor:
       - plan
 
-# 6. Terraform Deploy
-  - name: 'hashicorp/terraform:1.8.4'
+  # 5. Terraform Deploy
+  - name: 'alpine'
     id: deploy
     entrypoint: 'sh'
     secretEnv:
@@ -75,6 +68,9 @@ steps:
     args:
       - '-c'
       - |
+        apk add --no-cache curl unzip
+        curl -L https://github.com/opentofu/opentofu/releases/download/v1.8.4/tofu_1.8.4_linux_amd64.zip -o tofu.zip
+        unzip -o tofu.zip && mv tofu /usr/local/bin/tofu && chmod +x /usr/local/bin/tofu
         cd terraform
         tofu init
         tofu apply plan.cache
@@ -87,11 +83,3 @@ images:
 options:
   logging: CLOUD_LOGGING_ONLY
 
-availableSecrets:
-  secretManager:
-  - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_API_KEY/versions/latest
-    env: 'NEXTDNS_API_KEY'
-  - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_PROFILE_ID/versions/latest
-    env: 'NEXTDNS_PROFILE_ID'
-  - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_PROFILE_ID_2/versions/latest
-    env: 'NEXTDNS_PROFILE_ID_2'
