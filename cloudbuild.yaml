@@ -50,15 +50,7 @@ steps:
     waitFor:
       - validate
 
-  # 4. Manual Approval for Deploy
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'wait-for-approval'
-    entrypoint: 'gcloud'
-    args: ['alpha', 'builds', 'approve', '$BUILD_ID', '--location=${_REGION}']
-    waitFor:
-      - plan
-
-  # 5. Terraform Deploy
+  # 4. Terraform Deploy
   - name: 'alpine'
     id: deploy
     entrypoint: 'sh'
@@ -76,7 +68,7 @@ steps:
         tofu init
         tofu apply plan.cache
     waitFor:
-      - wait-for-approval
+      - plan
 
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${SHORT_SHA}'
