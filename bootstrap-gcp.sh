@@ -111,6 +111,16 @@ gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
   --role="roles/logging.logWriter" --condition=None
 
+# Role for creating Cloud Deploy releases
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/clouddeploy.releaser" --condition=None
+
+# Role for accessing the Cloud Deploy pipeline
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/clouddeploy.developer" --condition=None
+
 echo "Bootstrap complete!"
 
 echo ""
