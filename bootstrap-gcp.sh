@@ -122,6 +122,7 @@ gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --role="roles/clouddeploy.developer" --condition=None
 
 # Grant the default compute service account the necessary roles for Cloud Deploy
+GCP_PROJECT_NUMBER=$(gcloud projects describe ${GCP_PROJECT_ID} --format='value(projectNumber)')
 GCP_COMPUTE_SA="${GCP_PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 echo "Granting IAM roles to the default compute service account for Cloud Deploy: ${GCP_COMPUTE_SA}"
