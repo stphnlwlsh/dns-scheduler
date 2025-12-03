@@ -40,18 +40,14 @@ steps:
     waitFor:
       - install-tofu
 
-  # 4. Terraform Plan
+# 4. Terraform Plan
   - name: 'hashicorp/terraform:1.8.4'
     id: plan
     entrypoint: 'sh'
-    availableSecrets:
-      secretManager:
-      - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_API_KEY/versions/latest
-        env: 'NEXTDNS_API_KEY'
-      - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_PROFILE_ID/versions/latest
-        env: 'NEXTDNS_PROFILE_ID'
-      - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_PROFILE_ID_2/versions/latest
-        env: 'NEXTDNS_PROFILE_ID_2'
+    secretEnv:
+      - 'NEXTDNS_API_KEY'
+      - 'NEXTDNS_PROFILE_ID'
+      - 'NEXTDNS_PROFILE_ID_2'
     args:
       - '-c'
       - |
@@ -68,18 +64,14 @@ steps:
     waitFor:
       - plan
 
-  # 6. Terraform Deploy
+# 6. Terraform Deploy
   - name: 'hashicorp/terraform:1.8.4'
     id: deploy
     entrypoint: 'sh'
-    availableSecrets:
-      secretManager:
-      - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_API_KEY/versions/latest
-        env: 'NEXTDNS_API_KEY'
-      - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_PROFILE_ID/versions/latest
-        env: 'NEXTDNS_PROFILE_ID'
-      - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_PROFILE_ID_2/versions/latest
-        env: 'NEXTDNS_PROFILE_ID_2'
+    secretEnv:
+      - 'NEXTDNS_API_KEY'
+      - 'NEXTDNS_PROFILE_ID'
+      - 'NEXTDNS_PROFILE_ID_2'
     args:
       - '-c'
       - |
@@ -94,3 +86,12 @@ images:
 
 options:
   logging: CLOUD_LOGGING_ONLY
+
+availableSecrets:
+  secretManager:
+  - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_API_KEY/versions/latest
+    env: 'NEXTDNS_API_KEY'
+  - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_PROFILE_ID/versions/latest
+    env: 'NEXTDNS_PROFILE_ID'
+  - versionName: projects/${PROJECT_ID}/secrets/NEXTDNS_PROFILE_ID_2/versions/latest
+    env: 'NEXTDNS_PROFILE_ID_2'
