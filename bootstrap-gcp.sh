@@ -13,8 +13,6 @@ set -e
 
 # Configuration
 GCP_PROJECT_ID="cwaw-prod-67f8c561"
-GCP_REGION="us-central1"
-TF_STATE_BUCKET="${GCP_PROJECT_ID}-tfstate"
 
 echo "Bootstrapping project environment for project: ${GCP_PROJECT_ID}"
 
@@ -23,19 +21,7 @@ echo "Enabling required GCP APIs..."
 gcloud services enable config.googleapis.com
 gcloud services enable clouddeploy.googleapis.com
 
-# 2. Create GCS bucket for Terraform state (if it doesn't exist)
-echo "Checking for Terraform state bucket..."
-if ! gcloud storage buckets describe gs://${TF_STATE_BUCKET} --project=${GCP_PROJECT_ID} &>/dev/null; then
-  echo "Creating GCS bucket for Terraform state: ${TF_STATE_BUCKET}"
-  gcloud storage buckets create gs://${TF_STATE_BUCKET} \
-    --project=${GCP_PROJECT_ID} \
-    --location=${GCP_REGION} \
-    --uniform-bucket-level-access
-else
-  echo "Terraform state bucket already exists."
-fi
-
-# 3. Create a dedicated service account for Cloud Build (if it doesn't exist)
+# 2. Create a dedicated service account for Cloud Build (if it doesn't exist)
 GCP_BUILDER_SA_NAME="dns-scheduler-builder"
 GCP_BUILDER_SA_EMAIL="${GCP_BUILDER_SA_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
 
@@ -49,11 +35,15 @@ else
   echo "Cloud Build service account already exists."
 fi
 
-# 4. Grant the new service account necessary IAM roles
+# 3. Grant the new service account necessary IAM roles
 echo "Granting IAM roles to Cloud Build service account: ${GCP_BUILDER_SA_EMAIL}"
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
   --role="roles/artifactregistry.repoAdmin" --condition=None
+
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
+  --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
+  --role="roles/artifactregistry.writer" --condition=None
 
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
@@ -98,20 +88,6 @@ gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
 gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
   --role="roles/iam.serviceAccountTokenCreator" --condition=None
-
-# gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-#   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
-#   --role="roles/artifactregistry.admin" --condition=None
-#
-# gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-#   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
-#   --role="roles/iam.serviceAccountUser" --condition=None
-#
-# # Role for managing Terraform state in the GCS bucket
-# gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
-#   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
-#   --role="roles/storage.admin" --condition=None
-#
 
 echo "Bootstraping secrets"
 if ! gcloud secrets describe NEXTDNS_API_KEY --project=${GCP_PROJECT_ID} &>/dev/null; then

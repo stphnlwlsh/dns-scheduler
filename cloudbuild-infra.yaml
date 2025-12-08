@@ -32,14 +32,7 @@ steps:
       - |
         export PATH="/workspace:$$PATH"
         cd terraform
-        export TF_VAR_nextdns_api_key=$$NEXTDNS_API_KEY
-        export TF_VAR_nextdns_profile_id=$$NEXTDNS_PROFILE_ID
-        export TF_VAR_nextdns_profile_id=$$NEXTDNS_PROFILE_ID_2
         tofu plan -var="project_id=${PROJECT_ID}" -var="image_tag=$_IMAGE_TAG"
-    secretEnv:
-      - "NEXTDNS_API_KEY"
-      - "NEXTDNS_PROFILE_ID"
-      - "NEXTDNS_PROFILE_ID_2"
 
   - name: "alpine"
     id: apply
@@ -49,25 +42,9 @@ steps:
       - |
         export PATH="/workspace:$$PATH"
         cd terraform
-        export TF_VAR_nextdns_api_key=$$NEXTDNS_API_KEY
-        export TF_VAR_nextdns_profile_id=$$NEXTDNS_PROFILE_ID
-        export TF_VAR_nextdns_profile_id=$$NEXTDNS_PROFILE_ID_2
         tofu apply -auto-approve -var="project_id=${PROJECT_ID}" -var="image_tag=$_IMAGE_TAG"
     waitFor:
       - plan
-    secretEnv:
-      - "NEXTDNS_API_KEY"
-      - "NEXTDNS_PROFILE_ID"
-      - "NEXTDNS_PROFILE_ID_2"
 
 options:
   logging: CLOUD_LOGGING_ONLY
-
-availableSecrets:
-  secretManager:
-    - versionName: projects/$PROJECT_ID/secrets/NEXTDNS_API_KEY/versions/latest
-      env: "NEXTDNS_API_KEY"
-    - versionName: projects/$PROJECT_ID/secrets/NEXTDNS_PROFILE_ID/versions/latest
-      env: "NEXTDNS_PROFILE_ID"
-    - versionName: projects/$PROJECT_ID/secrets/NEXTDNS_PROFILE_ID_2/versions/latest
-      env: "NEXTDNS_PROFILE_ID_2"

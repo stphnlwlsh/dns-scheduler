@@ -68,6 +68,7 @@ locals {
 locals {
   builder_roles = [
     "roles/artifactregistry.repoAdmin",
+    "roles/artifactregistry.writer",
     "roles/clouddeploy.operator",
     "roles/config.agent",
     "roles/run.developer",

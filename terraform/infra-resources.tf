@@ -1,9 +1,32 @@
 
 resource "google_artifact_registry_repository" "repo" {
-  project       = var.project_id
-  location      = var.location
-  repository_id = "${var.app_name}-repo"
-  format        = "DOCKER"
+  project                = var.project_id
+  location               = var.location
+  repository_id          = "${var.app_name}-repo"
+  format                 = "DOCKER"
+  cleanup_policy_dry_run = false
+  cleanup_policies {
+    id     = "delete-untagged"
+    action = "DELETE"
+    condition {
+      tag_state = "UNTAGGED"
+    }
+  }
+  cleanup_policies {
+    id     = "keep-new-untagged"
+    action = "KEEP"
+    condition {
+      tag_state  = "UNTAGGED"
+      newer_than = "604800s"
+    }
+  }
+  cleanup_policies {
+    id     = "keep-5"
+    action = "KEEP"
+    most_recent_versions {
+      keep_count = 5
+    }
+  }
 }
 
 resource "google_clouddeploy_delivery_pipeline" "pipeline" {

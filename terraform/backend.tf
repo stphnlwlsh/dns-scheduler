@@ -9,8 +9,4 @@ terraform {
       version = "~> 3.2"
     }
   }
-  backend "gcs" {
-    bucket = "cwaw-prod-67f8c561-tfstate"
-    prefix = "terraform/state"
-  }
 }

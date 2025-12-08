@@ -71,7 +71,7 @@ steps:
       - "--delivery-pipeline=${_PIPELINE_NAME}"
       - "--region=${LOCATION}"
       - "--to-target=prod"
-      - "--images=${_IMAGE_NAME}=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/{$_IMAGE_NAME}:${SHORT_SHA}"
+      - "--images=${_IMAGE_NAME}=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}"
       - "--deploy-parameters=service_account_email=${_IMAGE_NAME}-app@${PROJECT_ID}.iam.gserviceaccount.com"
 
 images:

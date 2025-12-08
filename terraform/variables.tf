@@ -27,22 +27,3 @@ variable "app_name_friendly" {
   type        = string
   default     = "DNS Scheduler"
 }
-
-variable "nextdns_api_key" {
-  description = "NextDNS API Key"
-  type        = string
-  sensitive   = true
-}
-
-variable "nextdns_profile_id" {
-  description = "NextDNS Profile ID"
-  type        = string
-  sensitive   = true
-}
-
-variable "nextdns_profile_id_2" {
-  description = "NextDNS Profile ID for second profile (optional)"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
