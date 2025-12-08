@@ -1,17 +1,64 @@
+substitutions:
+  _IMAGE_NAME: ""
+  _PIPELINE_NAME: ""
+  _REPO_NAME: ""
+
 steps:
   - name: "gcr.io/cloud-builders/docker"
     id: build
     args:
       - "build"
       - "-t"
-      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${SHORT_SHA}"
+      - "${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}"
       - "."
 
   - name: "gcr.io/cloud-builders/docker"
     id: push
     args:
       - "push"
-      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${SHORT_SHA}"
+      - "${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}"
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: remove-latest-tag
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        gcloud artifacts docker tags delete \
+        ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:latest \
+        --quiet || \
+
+        if [[ $? -eq 1 ]]; then
+          echo "Warning: Tag 'latest' not found. Continuing build."
+        else
+          echo "Error: Failed to delete 'latest' tag for an unexpected reason."
+          exit 1
+        fi
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: add-latest-tag
+    entrypoint: "bash"
+    args:
+      - "-c"
+      - |
+        LATEST_IMAGE_WITH_DIGEST=$(gcloud artifacts docker images list \
+          "${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}" \
+          --sort-by="~CREATE_TIME" \
+          --limit=1 \
+          --format="value(format('{0}@{1}', package, version))")
+
+        # Exit if no image was found
+        if [ -z "$$LATEST_IMAGE_WITH_DIGEST" ]; then
+          echo "Error: No image found in ${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME} to tag."
+          exit 1
+        fi
+
+        echo "Tagging $$LATEST_IMAGE_WITH_DIGEST with 'latest'"
+
+        gcloud artifacts docker tags add \
+          "$$LATEST_IMAGE_WITH_DIGEST" \
+          "${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:latest" \
+          --quiet
 
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     id: create-release
@@ -21,16 +68,14 @@ steps:
       - "releases"
       - "create"
       - "release-${SHORT_SHA}"
-      - "--delivery-pipeline=dns-scheduler-pipeline"
-      - "--region=${_REGION}"
+      - "--delivery-pipeline=${_PIPELINE_NAME}"
+      - "--region=${LOCATION}"
       - "--to-target=prod"
-      - "--images=dns-scheduler=${_REGION}-docker.pkg.dev/${PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${SHORT_SHA}"
-      - "--deploy-parameters=service_account_email=dns-scheduler-app@${PROJECT_ID}.iam.gserviceaccount.com"
-    waitFor:
-      - push
+      - "--images=${_IMAGE_NAME}=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/{$_IMAGE_NAME}:${SHORT_SHA}"
+      - "--deploy-parameters=service_account_email=${_IMAGE_NAME}-app@${PROJECT_ID}.iam.gserviceaccount.com"
 
 images:
-  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/dns-scheduler-repo/dns-scheduler:${SHORT_SHA}"
+  - "${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}"
 
 options:
   logging: CLOUD_LOGGING_ONLY

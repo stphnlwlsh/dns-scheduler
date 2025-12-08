@@ -6,7 +6,7 @@ resource "google_cloud_run_v2_service" "default" {
   template {
     service_account = google_service_account.app.email
     containers {
-      image = "${var.location}-docker.pkg.dev/${var.project_id}/${var.app_name}-repo/${var.app_name}:$SHORT_SHA"
+      image = "${var.location}-docker.pkg.dev/${var.project_id}/${var.app_name}-repo/${var.app_name}:${var.image_tag}"
       env {
         name = "NEXTDNS_API_KEY"
         value_source {

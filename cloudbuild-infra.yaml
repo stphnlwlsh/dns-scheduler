@@ -1,3 +1,6 @@
+substitutions:
+  _IMAGE_TAG: "latest"
+
 steps:
   - name: "alpine"
     id: install-tofu
@@ -32,11 +35,12 @@ steps:
         export TF_VAR_nextdns_api_key=$$NEXTDNS_API_KEY
         export TF_VAR_nextdns_profile_id=$$NEXTDNS_PROFILE_ID
         export TF_VAR_nextdns_profile_id=$$NEXTDNS_PROFILE_ID_2
-        tofu plan -var="project_id=${PROJECT_ID}"
+        tofu plan -var="project_id=${PROJECT_ID}" -var="image_tag=$_IMAGE_TAG"
     secretEnv:
       - "NEXTDNS_API_KEY"
       - "NEXTDNS_PROFILE_ID"
       - "NEXTDNS_PROFILE_ID_2"
+
   - name: "alpine"
     id: apply
     entrypoint: sh
@@ -48,7 +52,7 @@ steps:
         export TF_VAR_nextdns_api_key=$$NEXTDNS_API_KEY
         export TF_VAR_nextdns_profile_id=$$NEXTDNS_PROFILE_ID
         export TF_VAR_nextdns_profile_id=$$NEXTDNS_PROFILE_ID_2
-        tofu apply -auto-approve -var="project_id=${PROJECT_ID}"
+        tofu apply -auto-approve -var="project_id=${PROJECT_ID}" -var="image_tag=$_IMAGE_TAG"
     waitFor:
       - plan
     secretEnv:

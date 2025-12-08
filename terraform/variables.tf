@@ -10,6 +10,12 @@ variable "location" {
   default     = "us-central1"
 }
 
+variable "image_tag" {
+  description = "The tag for the Docker image"
+  type        = string
+  default     = "latest"
+}
+
 variable "app_name" {
   description = "The tag for the Docker image"
   type        = string
