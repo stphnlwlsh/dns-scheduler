@@ -48,26 +48,12 @@ type CategoryPayload struct {
 }
 
 type ParentalControlSettings struct {
-	Categories    []CategoryPayload `json:"categories"`
-	SafeSearch    interface{}       `json:"safeSearch,omitempty"`
-	YoutubeMode   interface{}       `json:"youtubeMode,omitempty"`
-	BlockBypass   interface{}       `json:"blockBypass,omitempty"`
-	Services      interface{}       `json:"services,omitempty"`
-	Recreation    interface{}       `json:"recreation,omitempty"`
-}
-
-func newNextDNSClient() (*NextDNSClient, error) {
-	profileID := os.Getenv("NEXTDNS_PROFILE_ID")
-	apiKey := os.Getenv("NEXTDNS_API_KEY")
-
-	if profileID == "" || apiKey == "" {
-		return nil, fmt.Errorf("NEXTDNS_PROFILE_ID and NEXTDNS_API_KEY environment variables are required")
-	}
-
-	return &NextDNSClient{
-		profileID: profileID,
-		apiKey:    apiKey,
-	}, nil
+	Categories  []CategoryPayload `json:"categories"`
+	SafeSearch  any               `json:"safeSearch,omitempty"`
+	YoutubeMode any               `json:"youtubeMode,omitempty"`
+	BlockBypass any               `json:"blockBypass,omitempty"`
+	Services    any               `json:"services,omitempty"`
+	Recreation  any               `json:"recreation,omitempty"`
 }
 
 func newNextDNSClientForProfile(profileID string) (*NextDNSClient, error) {
@@ -528,7 +514,7 @@ func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 	action := r.URL.Query().Get("action")
 	profileID := r.URL.Query().Get("profile")
 	panicProfileID := r.URL.Query().Get("panic_profile")
-	
+
 	if action == "" {
 		http.Error(w, "Missing 'action' query parameter. Use ?action=enable or ?action=disable&profile=ID (optional)&panic_profile=ID (optional)", http.StatusBadRequest)
 		return
@@ -538,13 +524,13 @@ func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 	case "enable":
 		var err error
 		var message string
-		
+
 		// If panic_profile is provided, use that as the target profile
 		targetProfile := profileID
 		if panicProfileID != "" {
 			targetProfile = panicProfileID
 		}
-		
+
 		if targetProfile != "" {
 			// Target specific profile
 			err = enableSocialNetworksForProfile(targetProfile)
@@ -554,15 +540,15 @@ func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 			err = enableSocialNetworksForAllProfiles()
 			message = "Social networks blocking enabled for all profiles (porn always blocked)"
 		}
-		
+
 		if err != nil {
 			log.Printf("Error enabling social networks: %v", err)
 			http.Error(w, fmt.Sprintf("Failed to enable social networks: %v", err), http.StatusInternalServerError)
 			return
 		}
-		
+
 		log.Println(message)
-		
+
 		// Handle panic URL blocking if panic_profile is provided
 		if panicProfileID != "" {
 			if err := handlePanicURL(panicProfileID, "block"); err != nil {
@@ -570,20 +556,20 @@ func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 				// Don't fail the whole request, just log the warning
 			}
 		}
-		
+
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(message))
-		
+
 	case "disable":
 		var err error
 		var message string
-		
+
 		// If panic_profile is provided, use that as the target profile
 		targetProfile := profileID
 		if panicProfileID != "" {
 			targetProfile = panicProfileID
 		}
-		
+
 		if targetProfile != "" {
 			// Target specific profile
 			err = disableSocialNetworksForProfile(targetProfile)
@@ -593,15 +579,15 @@ func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 			err = disableSocialNetworksForAllProfiles()
 			message = "Social networks blocking disabled for all profiles (porn always blocked)"
 		}
-		
+
 		if err != nil {
 			log.Printf("Error disabling social networks: %v", err)
 			http.Error(w, fmt.Sprintf("Failed to disable social networks: %v", err), http.StatusInternalServerError)
 			return
 		}
-		
+
 		log.Println(message)
-		
+
 		// Handle panic URL unblocking if panic_profile is provided
 		if panicProfileID != "" {
 			if err := handlePanicURL(panicProfileID, "unblock"); err != nil {
@@ -609,7 +595,7 @@ func ToggleSocialNetworks(w http.ResponseWriter, r *http.Request) {
 				// Don't fail the whole request, just log the warning
 			}
 		}
-		
+
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(message))
 	default:
