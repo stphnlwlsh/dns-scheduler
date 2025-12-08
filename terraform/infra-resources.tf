@@ -29,6 +29,26 @@ resource "google_artifact_registry_repository" "repo" {
   }
 }
 
+resource "google_cloudbuild_trigger" "main_trigger" {
+  location        = var.location
+  name            = "${var.app_name}-main-app"
+  description     = "application changes only"
+  service_account = google_service_account.builder.id
+  filename        = "cloudbuild-app.yaml"
+  substitutions = {
+    _IMAGE_NAME    = var.app_name
+    _PIPELINE_NAME = google_clouddeploy_delivery_pipeline.pipeline.name
+    _REPO_NAME     = google_artifact_registry_repository.repo.name
+  }
+
+  repository_event_config {
+    repository = "projects/${var.project_id}/locations/${var.location}/connections/GitLab/repositories/connectwithawalsh-${var.app_name}"
+    push {
+      branch = "^main$"
+    }
+  }
+}
+
 resource "google_clouddeploy_delivery_pipeline" "pipeline" {
   project  = var.project_id
   location = var.location
