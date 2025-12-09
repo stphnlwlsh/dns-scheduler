@@ -12,7 +12,7 @@
 set -e
 
 # Configuration
-GCP_PROJECT_ID="cwaw-prod-67f8c561"
+GCP_PROJECT_ID=${GCP_PROJECT_ID:?GCP_PROJECT_ID environment variable not set}
 
 echo "Bootstrapping project environment for project: ${GCP_PROJECT_ID}"
 
