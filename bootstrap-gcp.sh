@@ -13,6 +13,7 @@ set -e
 
 # Configuration
 GCP_PROJECT_ID=${GCP_PROJECT_ID:?GCP_PROJECT_ID environment variable not set}
+GCP_PROJECT_NAME=${GCP_PROJECT_NAME:?GCP_PROJECT_NAME environment variable not set}
 
 echo "Bootstrapping project environment for project: ${GCP_PROJECT_ID}"
 
@@ -22,7 +23,7 @@ gcloud services enable config.googleapis.com
 gcloud services enable clouddeploy.googleapis.com
 
 # 2. Create a dedicated service account for Cloud Build (if it doesn't exist)
-GCP_BUILDER_SA_NAME="dns-scheduler-builder"
+GCP_BUILDER_SA_NAME="${GCP_PROJECT_NAME}-builder"
 GCP_BUILDER_SA_EMAIL="${GCP_BUILDER_SA_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
 
 echo "Checking for Cloud Build service account..."
@@ -91,17 +92,17 @@ gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
 
 gcloud builds connections create gitlab GitLab \
   --region=us-central1 \
-  --project=cwaw-prod-67f8c561 \
+  --project=${GCP_PROJECT_ID} \
   --host-uri=https://gitlab.com \
   --authorizer-token-secret-version=projects/209433922082/locations/us-central1/secrets/cloudbuild-gitlab-1764712029569-api-access-token/versions/latest \
   --read-authorizer-token-secret-version=projects/209433922082/locations/us-central1/secrets/cloudbuild-gitlab-1764712029569-read-api-access-token/versions/latest \
   --webhook-secret-secret-version=projects/209433922082/locations/us-central1/secrets/cloudbuild-gitlab-1764712029569-webhook-secret/versions/latest
 
-gcloud builds repositories create connectwithawalsh-dns-scheduler \
-  --remote-uri=https://gitlab.com/connectwithawalsh/dns-scheduler.git \
+gcloud builds repositories create connectwithawalsh-${GCP_PROJECT_NAME} \
+  --remote-uri=https://gitlab.com/connectwithawalsh/${GCP_PROJECT_NAME}.git \
   --connection=GitLab \
   --region=us-central1 \
-  --project=cwaw-prod-67f8c561
+  --project=${GCP_PROJECT_ID}
 
 echo "Bootstraping secrets"
 if ! gcloud secrets describe NEXTDNS_API_KEY --project=${GCP_PROJECT_ID} &>/dev/null; then

@@ -4,11 +4,6 @@ variable "project_id" {
   type        = string
 }
 
-variable "project_number" {
-  description = "The GCP project number"
-  type        = string
-}
-
 variable "location" {
   description = "The GCP region"
   type        = string
@@ -22,13 +17,13 @@ variable "image_tag" {
 }
 
 variable "app_name" {
-  description = "The tag for the Docker image"
+  description = "The name of the application"
   type        = string
   default     = "dns-scheduler"
 }
 
 variable "app_name_friendly" {
-  description = "The tag for the Docker image"
+  description = "The friendly name of the application"
   type        = string
   default     = "DNS Scheduler"
 }

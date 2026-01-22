@@ -108,10 +108,11 @@ func (c *NextDNSClient) enableSocialNetworks() error {
 	socialNetworksFound := false
 	pornFound := false
 	for i, category := range currentSettings.Categories {
-		if category.ID == "social-networks" {
+		switch category.ID {
+		case "social-networks":
 			currentSettings.Categories[i].Active = true
 			socialNetworksFound = true
-		} else if category.ID == "porn" {
+		case "porn":
 			currentSettings.Categories[i].Active = true // Always keep porn blocked
 			pornFound = true
 		}
@@ -215,9 +216,10 @@ func handlePanicURL(profileID, action string) error {
 
 	panicDomain := "my.nextdns.io"
 
-	if action == "block" {
+	switch action {
+	case "block":
 		return client.addToDenylist(panicDomain)
-	} else if action == "unblock" {
+	case "unblock":
 		return client.removeFromDenylist(panicDomain)
 	}
 
@@ -389,10 +391,11 @@ func (c *NextDNSClient) disableSocialNetworks() error {
 	socialNetworksFound := false
 	pornFound := false
 	for i, category := range currentSettings.Categories {
-		if category.ID == "social-networks" {
+		switch category.ID {
+		case "social-networks":
 			currentSettings.Categories[i].Active = false
 			socialNetworksFound = true
-		} else if category.ID == "porn" {
+		case "porn":
 			currentSettings.Categories[i].Active = true // Always keep porn blocked
 			pornFound = true
 		}

@@ -42,3 +42,7 @@ terraform/terraform.tfvars
 ehthumbs.db
 Thumbs.db
 .envrc
+
+# Local development
+.env_*.env
+!.env_common.env
