@@ -1,5 +1,0 @@
-[tools]
-go = "latest"
-
-[env]
-_.file = [ '.env_common.env', '.env_prod.env' ]
