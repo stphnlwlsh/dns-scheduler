@@ -47,3 +47,8 @@ Thumbs.db
 # Local development
 .env_*.env
 !.env_common.env
+
+
+# Added by cargo
+
+/target

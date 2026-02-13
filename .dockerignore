@@ -1,0 +1,12 @@
+target/
+.git/
+terraform/
+.env*
+Dockerfile
+.dockerignore
+.gitignore
+.gcloudignore
+flake.lock
+flake.nix
+README.md
+GEMINI.md
