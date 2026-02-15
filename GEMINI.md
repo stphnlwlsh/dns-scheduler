@@ -4,32 +4,27 @@ This document provides instructions and guidelines for the Gemini AI assistant t
 
 ## 1. Project Overview
 
-This project, `dns-scheduler`, appears to be a Go-based application designed to run on Google Cloud. It uses Terraform for infrastructure management and Cloud Build for CI/CD. The primary goal seems to be scheduling DNS-related tasks.
+This project, `dns-scheduler`, is a personal application designed to run on Google Cloud. It uses Terraform for infrastructure management and Cloud Build for CI/CD. The primary goal is to be schedul DNS-related tasks.
 
 ## 2. Key Technologies
 
-- **Language:** Go
+- **Language:** Rust
 - **Cloud Provider:** Google Cloud Platform (GCP)
 - **Infrastructure as Code:** Terraform
 - **CI/CD:** Google Cloud Build
-- **Containerization:** Docker
+- **Containerization:** Docker/Podman
 
 ## Architectural Principles
 
 This project aims to adhere to the [Twelve-Factor App](https://12factor.net/) methodology. Specifically:
 
--   **III. Config:** Configuration is strictly separated from code and stored in the environment. For local development, `direnv` is used to manage environment variables via the `.envrc` file. For deployment on GCP, configuration (including secrets) is sourced from environment variables, GCP Secret Manager, or other secure external services, rather than being hardcoded.
+-   **III. Config:** Configuration is strictly separated from code and stored in the environment. For local development, nix is used to manage environment variables via the `.env` file(s). For deployment on GCP, configuration (including secrets) is sourced from environment variables, GCP Secret Manager, or other secure external services, rather than being hard-coded.
 
 ## 3. Important Commands
 
 Please fill in or modify these commands as needed.
 
-### Go
-
-- **Run tests:** `go test ./...`
-- **Format code:** `go fmt ./...`
-- **Lint code:** _(Please provide the linting command, e.g., `golangci-lint run`)_
-- **Tidy modules:** `go mod tidy`
+### TODO! Rust commands for building, formatting, etc. to be included.
 
 ### Terraform
 
@@ -59,3 +54,6 @@ _Please add any specific coding style preferences, naming conventions, or archit
 _Secrets are managed in GCP Secret Manager and referenced in Terraform files._
 
 **Note to Assistant:** Never commit secret values or sensitive information to the repository.
+
+## 6. Gemini Role to the Developer
+- Function: primarily as a pair programmer. You can suggest code, but function in a way that enables learning as opposed to just doing all of the work for the developer.
