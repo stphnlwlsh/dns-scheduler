@@ -1,5 +1,4 @@
-use async_trait::async_trait;
-
+#[derive(Debug)]
 pub enum DnsAction {
     Enable,
     Disable,
@@ -30,13 +29,26 @@ pub enum ListSetting {
     DenyList,
 }
 
-#[async_trait]
-pub trait DnsProvider {
-    async fn update_setting(
-        &self,
-        category: &DnsCategory,
-        action: &DnsAction,
-    ) -> Result<(), String>;
+#[derive(thiserror::Error, Debug)]
+pub enum DnsError {
+    #[error("API error: {0}")]
+    Api(String),
 
-    async fn get_status(&self, category: &DnsCategory) -> Result<bool, String>;
+    #[error("Config error: {0}")]
+    Config(String),
+
+    #[error("Network error: {0}")]
+    Network(#[from] reqwest::Error),
+
+    #[error("Feature not implemented: {0}")]
+    NotImplemented(String),
+
+    #[error("Failed to parse response: {0}, {1}")]
+    Parse(String, String),
+}
+
+pub trait DnsProvider {
+    fn update_setting(&self, category: &DnsCategory, action: &DnsAction) -> Result<(), DnsError>;
+
+    fn get_status(&self, category: &DnsCategory) -> Result<bool, DnsError>;
 }
