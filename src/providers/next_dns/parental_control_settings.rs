@@ -7,7 +7,7 @@ pub struct NextDNSResponse {
     pub data: ParentalControlSettings,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParentalControlSettings {
     pub services: Vec<NextDNSEntry>,
@@ -17,7 +17,7 @@ pub struct ParentalControlSettings {
     pub block_bypass: bool,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct NextDNSEntry {
     pub id: String,
     pub active: bool,
