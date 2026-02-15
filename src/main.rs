@@ -1,32 +1,46 @@
-// use axum::{Router, routing::get, serve};
+use dns_scheduler::handlers::{
+    disable, enable,
+    toggle::{self, toggle_dns_settings},
+};
 
-use dns_scheduler::domain::{DnsCategory, DnsProvider, ToggleableSetting};
-
-#[tokio::main]
-async fn main() {
-    // let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
-    // let addr = format!("0.0.0.0:{}", port);
-    // let app = Router::new().route("/enable", get());
-    // .route("/disable", get(handlers::disable::disable_dns_settings))
-    // .route("/toggle", get(handlers::toggle::toggle_dns_settings));
-
-    // let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-
-    // println!("listening on {}", listener.local_addr().unwrap());
-
-    // serve(listener, app).await.unwrap();
-
-    let profile_id = std::env::var("NEXTDNS_PROFILE_ID").unwrap();
-
-    let provider = dns_scheduler::providers::next_dns::client::NextDNSClient::new(profile_id)
+fn main() {
+    let provider = dns_scheduler::providers::next_dns::client::NextDNSClient::new()
         .expect("Failed to create DNS client");
 
-    let category = DnsCategory::Toggle(ToggleableSetting::AdultContent);
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+    let addr = format!("0.0.0.0:{}", port);
+    let server = tiny_http::Server::http(addr).unwrap();
 
-    println!("Checking status for {category:?}...");
+    println!("listening on {}", server.server_addr().to_ip().unwrap());
 
-    match provider.get_status(&category).await {
-        Ok(is_active) => println!("{category:?} active? {}", is_active),
-        Err(e) => println!("Error: {e:?}"),
+    for request in server.incoming_requests() {
+        match (request.method(), request.url()) {
+            (&tiny_http::Method::Get, "/enable") => {
+                handle_request(enable::enable_dns_settings(&provider), request)
+            }
+
+            (&tiny_http::Method::Get, "/disable") => {
+                handle_request(disable::disable_dns_settings(&provider), request)
+            }
+            (&tiny_http::Method::Get, "/toggle") => {
+                handle_request(toggle::toggle_dns_settings(&provider), request)
+            }
+            _ => {
+                let response =
+                    tiny_http::Response::from_string("not implemented").with_status_code(501);
+                request.respond(response).unwrap();
+            }
+        }
     }
+}
+
+fn handle_request(
+    result: Result<String, dns_scheduler::domain::DnsError>,
+    request: tiny_http::Request,
+) {
+    let response = match result {
+        Ok(msg) => tiny_http::Response::from_string(msg).with_status_code(200),
+        Err(err) => tiny_http::Response::from_string(err.to_string()).with_status_code(500),
+    };
+    request.respond(response).unwrap();
 }
