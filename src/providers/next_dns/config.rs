@@ -1,4 +1,4 @@
-use crate::domain::ToggleableSetting;
+use crate::domain::{ListSetting, ToggleableSetting};
 
 pub const NEXT_DNS_API_URL: &str = "https://api.nextdns.io";
 
@@ -10,11 +10,21 @@ impl ToggleableSetting {
             Self::PanicMode => "panic",
             Self::SafeSearch => "safeSearch",
             Self::SocialNetworks => "social-networks",
-            Self::Youtube => "youtubeRestrictedMode",
+            Self::YoutubeRestrictedMode => "youtubeRestrictedMode",
         }
     }
 
     pub fn is_category(&self) -> bool {
         matches!(self, Self::AdultContent | Self::SocialNetworks)
+    }
+}
+
+impl ListSetting {
+    pub fn to_id(&self) -> &str {
+        match self {
+            ListSetting::AllowList(_) => "allowlist",
+            ListSetting::DenyList(_) => "denylist",
+            ListSetting::YoutubeDomains(_) => "denylist",
+        }
     }
 }
