@@ -1,27 +1,39 @@
-use dns_scheduler::handlers::{
-    disable, enable,
-    toggle::{self, toggle_dns_settings},
+use dns_scheduler::{
+    domain::DnsAction,
+    handlers::{set, toggle},
 };
 
 fn main() {
     let provider = dns_scheduler::providers::next_dns::client::NextDNSClient::new()
         .expect("Failed to create DNS client");
 
-    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3003".to_string());
     let addr = format!("0.0.0.0:{}", port);
     let server = tiny_http::Server::http(addr).unwrap();
 
-    println!("listening on {}", server.server_addr().to_ip().unwrap());
+    let deny_list = std::env::var("DOMAIN_DENY_LIST").unwrap_or_default();
+    let allow_list = std::env::var("DOMAIN_ALLOW_LIST").unwrap_or_default();
 
     for request in server.incoming_requests() {
         match (request.method(), request.url()) {
-            (&tiny_http::Method::Get, "/enable") => {
-                handle_request(enable::enable_dns_settings(&provider), request)
-            }
-
-            (&tiny_http::Method::Get, "/disable") => {
-                handle_request(disable::disable_dns_settings(&provider), request)
-            }
+            (&tiny_http::Method::Get, "/enable") => handle_request(
+                set::set_dns_settings(
+                    &provider,
+                    DnsAction::Enable,
+                    allow_list.clone(),
+                    deny_list.clone(),
+                ),
+                request,
+            ),
+            (&tiny_http::Method::Get, "/disable") => handle_request(
+                set::set_dns_settings(
+                    &provider,
+                    DnsAction::Disable,
+                    allow_list.clone(),
+                    deny_list.clone(),
+                ),
+                request,
+            ),
             (&tiny_http::Method::Get, "/toggle") => {
                 handle_request(toggle::toggle_dns_settings(&provider), request)
             }

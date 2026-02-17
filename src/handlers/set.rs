@@ -1,7 +1,7 @@
-use crate::domain::{
-    DnsAction, DnsCategory, DnsError, DnsProvider, ListSetting, ToggleableSetting,
+use crate::{
+    config::YOU_TUBE_DOMAINS,
+    domain::{DnsAction, DnsCategory, DnsError, DnsProvider, ListSetting, ToggleableSetting},
 };
-use crate::providers::next_dns::config::YOU_TUBE_DOMAINS;
 
 pub fn set_dns_settings(
     provider: &dyn DnsProvider,

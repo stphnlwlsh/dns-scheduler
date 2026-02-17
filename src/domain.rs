@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum DnsAction {
     Enable,
     Disable,
@@ -7,10 +7,10 @@ pub enum DnsAction {
     Remove,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum DnsCategory {
     Toggle(ToggleableSetting),
-    List(ListSetting, String),
+    List(ListSetting),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -20,13 +20,32 @@ pub enum ToggleableSetting {
     SafeSearch,
     SocialNetworks,
     PanicMode,
-    Youtube,
+    YoutubeRestrictedMode,
 }
 
-#[derive(Debug)]
+impl ToggleableSetting {
+    pub const ALL: [Self; 5] = [
+        Self::AdultContent,
+        Self::BlockByPass,
+        Self::SafeSearch,
+        Self::SocialNetworks,
+        Self::YoutubeRestrictedMode,
+    ];
+}
+
+#[derive(Clone, Debug)]
 pub enum ListSetting {
-    AllowList,
-    DenyList,
+    AllowList(String),
+    DenyList(String),
+    YoutubeDomains(String),
+}
+
+impl ListSetting {
+    pub fn domains(&self) -> &str {
+        match &self {
+            Self::AllowList(d) | Self::DenyList(d) | Self::YoutubeDomains(d) => d,
+        }
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -34,8 +53,8 @@ pub enum DnsError {
     #[error("API error: {0}")]
     Api(String),
 
-    #[error("Config error: {0}")]
-    Config(String),
+    #[error("Config error: {0}; {1}")]
+    Config(String, String),
 
     #[error("Network error: {0}")]
     Network(#[from] reqwest::Error),

@@ -1,10 +1,15 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::domain::ToggleableSetting;
 
 #[derive(Deserialize)]
 pub struct NextDNSResponse {
     pub data: ParentalControlSettings,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NextDNSListResponse {
+    pub data: Vec<NextDNSEntry>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -17,10 +22,12 @@ pub struct ParentalControlSettings {
     pub block_bypass: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NextDNSEntry {
     pub id: String,
     pub active: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub recreation: Option<bool>,
 }
 
@@ -38,7 +45,7 @@ impl ParentalControlSettings {
             ToggleableSetting::BlockByPass => self.block_bypass,
             ToggleableSetting::SafeSearch => self.safe_search,
             ToggleableSetting::PanicMode => todo!(),
-            ToggleableSetting::Youtube => self.youtube_restricted_mode,
+            ToggleableSetting::YoutubeRestrictedMode => self.youtube_restricted_mode,
         }
     }
 }

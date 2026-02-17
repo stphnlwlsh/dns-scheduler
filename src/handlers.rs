@@ -1,3 +1,2 @@
-pub mod disable;
-pub mod enable;
+pub mod set;
 pub mod toggle;
