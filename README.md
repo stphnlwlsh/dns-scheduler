@@ -1,21 +1,21 @@
 # DNS Scheduler
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Go Version](https://img.shields.io/badge/go-1.x-blue)
+![Rust Version](https://img.shields.io/badge/rust-1.x-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-A Go-based service for scheduling DNS-related tasks on Google Cloud Platform, deployed via Cloud Build and managed with Terraform.
+A Rust-based service for scheduling DNS-related tasks on Google Cloud Platform, deployed via Cloud Build and managed with Terraform.
 
 ## Overview
 
-The DNS Scheduler provides a framework for automating DNS operations within a GCP environment. It is designed to be deployed as a serverless function or Cloud Run service, triggered by events or schedules to perform its tasks.
+The DNS Scheduler provides a framework for automating DNS operations within a GCP environment. It is designed to be deployed as a Cloud Run service, triggered by events or schedules to perform its tasks.
 
 ## Technology Stack
 
-- **Language:** Go
+- **Language:** Rust
 - **Cloud Provider:** Google Cloud Platform (GCP)
 - **Infrastructure as Code:** Terraform
-- **CI/CD & Deployment:** Google Cloud Build, Skaffold
+- **CI/CD & Deployment:** Google Cloud Build, Skaffold, Cloud Deploy
 - **Containerization:** Docker
 
 ## Prerequisites
@@ -73,7 +73,7 @@ Run the script from the root of the repository:
 ```bash
 ./bootstrap-gcp.sh
 ```
-**IMPORTANT**: After the script completes, you must manually populate the created secrets (`NEXTDNS_API_KEY`, `NEXTDNS_PROFILE_ID`, etc.) with their actual values using the gcloud CLI as instructed in the script's output.
+**IMPORTANT**: After the script completes, you must manually populate the created secrets (`NEXTDNS_API_KEY`, `NEXTDNS_PROFILE_ID_0`, etc.) with their actual values using the gcloud CLI as instructed in the script's output.
 
 ### 5. Provision Infrastructure
 

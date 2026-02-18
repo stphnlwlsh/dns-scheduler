@@ -17,22 +17,30 @@ resource "google_cloud_run_v2_service" "default" {
         }
       }
       env {
-        name = "NEXTDNS_PROFILE_ID"
+        name = "NEXTDNS_PROFILE_ID_0"
         value_source {
           secret_key_ref {
-            secret  = "NEXTDNS_PROFILE_ID"
+            secret  = "NEXTDNS_PROFILE_ID_0"
             version = "latest"
           }
         }
       }
       env {
-        name = "NEXTDNS_PROFILE_ID_2"
+        name = "NEXTDNS_PROFILE_ID_1"
         value_source {
           secret_key_ref {
-            secret  = "NEXTDNS_PROFILE_ID_2"
+            secret  = "NEXTDNS_PROFILE_ID_1"
             version = "latest"
           }
         }
+      }
+      env {
+        name  = "DOMAIN_DENY_LIST"
+        value = var.domain_deny_list
+      }
+      env {
+        name  = "DOMAIN_ALLOW_LIST"
+        value = var.domain_allow_list
       }
     }
   }

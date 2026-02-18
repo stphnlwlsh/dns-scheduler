@@ -27,3 +27,15 @@ variable "app_name_friendly" {
   type        = string
   default     = "DNS Scheduler"
 }
+
+variable "domain_deny_list" {
+  description = "The list of domains to deny"
+  type        = string
+  default     = ""
+}
+
+variable "domain_allow_list" {
+  description = "The list of domains to allow"
+  type        = string
+  default     = ""
+}

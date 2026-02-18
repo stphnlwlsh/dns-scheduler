@@ -111,16 +111,16 @@ else
   echo "Secret NEXTDNS_API_KEY already exists."
 fi
 
-if ! gcloud secrets describe NEXTDNS_PROFILE_ID --project=${GCP_PROJECT_ID} &>/dev/null; then
-  gcloud secrets create NEXTDNS_PROFILE_ID
+if ! gcloud secrets describe NEXTDNS_PROFILE_ID_0 --project=${GCP_PROJECT_ID} &>/dev/null; then
+  gcloud secrets create NEXTDNS_PROFILE_ID_0
 else
-  echo "Secret NEXTDNS_PROFILE_ID already exists."
+  echo "Secret NEXTDNS_PROFILE_ID_0 already exists."
 fi
 
-if ! gcloud secrets describe NEXTDNS_PROFILE_ID_2 --project=${GCP_PROJECT_ID} &>/dev/null; then
-  gcloud secrets create NEXTDNS_PROFILE_ID_2
+if ! gcloud secrets describe NEXTDNS_PROFILE_ID_1 --project=${GCP_PROJECT_ID} &>/dev/null; then
+  gcloud secrets create NEXTDNS_PROFILE_ID_1
 else
-  echo "Secret NEXTDNS_PROFILE_ID_2 already exists."
+  echo "Secret NEXTDNS_PROFILE_ID_1 already exists."
 fi
 
 echo "Bootstrap complete!"
@@ -132,7 +132,7 @@ echo ""
 echo "  Secret Manager Secrets are now bootstrapped."
 echo "  Run the below commands with production values from local to set verison 1."
 echo "  echo -n \"placeholder\" | gcloud secrets create NEXTDNS_API_KEY --data-file=-"
-echo "  echo -n \"placeholder\" | gcloud secrets create NEXTDNS_PROFILE_ID --data-file=-"
-echo "  echo -n \"placeholder\" | gcloud secrets create NEXTDNS_PROFILE_ID_2 --data-file=-"
+echo "  echo -n \"placeholder\" | gcloud secrets create NEXTDNS_PROFILE_ID_0 --data-file=-"
+echo "  echo -n \"placeholder\" | gcloud secrets create NEXTDNS_PROFILE_ID_1 --data-file=-"
 echo ""
 echo "================================================================================"

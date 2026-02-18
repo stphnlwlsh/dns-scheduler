@@ -14,13 +14,17 @@ spec:
                 secretKeyRef:
                   name: NEXTDNS_API_KEY
                   key: latest
-            - name: NEXTDNS_PROFILE_ID
+            - name: NEXTDNS_PROFILE_ID_0
               valueFrom:
                 secretKeyRef:
-                  name: NEXTDNS_PROFILE_ID
+                  name: NEXTDNS_PROFILE_ID_0
                   key: latest
-            - name: NEXTDNS_PROFILE_ID_2
+            - name: NEXTDNS_PROFILE_ID_1
               valueFrom:
                 secretKeyRef:
-                  name: NEXTDNS_PROFILE_ID_2
+                  name: NEXTDNS_PROFILE_ID_1
                   key: latest
+            - name: DOMAIN_DENY_LIST
+              value: "" # from-param: ${domain_deny_list}
+            - name: DOMAIN_ALLOW_LIST
+              value: "" # from-param: ${domain_allow_list}

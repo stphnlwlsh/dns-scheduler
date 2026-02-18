@@ -36,9 +36,11 @@ resource "google_cloudbuild_trigger" "main_trigger" {
   service_account = google_service_account.builder.id
   filename        = "cloudbuild-app.yaml"
   substitutions = {
-    _IMAGE_NAME    = var.app_name
-    _PIPELINE_NAME = google_clouddeploy_delivery_pipeline.pipeline.name
-    _REPO_NAME     = google_artifact_registry_repository.repo.name
+    _IMAGE_NAME        = var.app_name
+    _PIPELINE_NAME     = google_clouddeploy_delivery_pipeline.pipeline.name
+    _REPO_NAME         = google_artifact_registry_repository.repo.name
+    _DOMAIN_DENY_LIST  = var.domain_deny_list
+    _DOMAIN_ALLOW_LIST = var.domain_allow_list
   }
 
   repository_event_config {

@@ -48,11 +48,11 @@
               echo "⚠️  Warning: NEXTDNS_API_KEY is not set"
             fi
 
-            if [ -z "$NEXTDNS_PROFILE_ID" ]; then
+            if [ -z "$NEXTDNS_PROFILE_ID_0" ]; then
               echo "⚠️  Warning: NEXTDNS_PROFILE_ID_0 is not set"
             fi
 
-            if [ -z "$NEXTDNS_PROFILE_ID_2" ]; then
+            if [ -z "$NEXTDNS_PROFILE_ID_1" ]; then
               echo "⚠️  Warning: NEXTDNS_PROFILE_ID_1 is not set"
             fi
 
