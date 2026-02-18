@@ -1,83 +1,91 @@
 # DNS Scheduler
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
-![Rust Version](https://img.shields.io/badge/rust-1.x-blue)
+![Rust Version](https://img.shields.io/badge/rust-2024-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-A Rust-based service for scheduling DNS-related tasks on Google Cloud Platform, deployed via Cloud Build and managed with Terraform.
+A Rust-based service for scheduling DNS-related tasks on Google Cloud Platform, specifically focused on managing NextDNS settings. This application is designed to be deployed as a Cloud Run service, typically triggered by Cloud Scheduler to automate DNS toggles (e.g., enabling/disabling parental controls).
 
 ## Overview
 
-The DNS Scheduler provides a framework for automating DNS operations within a GCP environment. It is designed to be deployed as a Cloud Run service, triggered by events or schedules to perform its tasks.
+The DNS Scheduler provides a lightweight HTTP interface to automate NextDNS operations. It currently supports:
+- **Enable/Disable**: Set DNS settings based on a predefined allow/deny list.
+- **Toggle**: Switch between enabled and disabled states.
+
+## Architecture
+
+- **Service**: A Rust application using `tiny_http` for low-overhead HTTP handling.
+- **Cloud Run**: The application is containerized and deployed to Google Cloud Run, providing a serverless, scalable execution environment.
+- **Secret Manager**: Sensitive configuration (like NextDNS API keys) is managed via GCP Secret Manager and injected into the environment.
+- **Infrastructure as Code**: All GCP resources are managed via Terraform.
+- **CI/CD**: Automated build and deployment pipelines using Google Cloud Build.
+- **Nix**: Project dependencies and development environment are managed using Nix Flakes.
 
 ## Technology Stack
 
-- **Language:** Rust
+- **Language:** Rust (2024 edition)
+- **Framework:** `tiny_http` (minimal HTTP server)
 - **Cloud Provider:** Google Cloud Platform (GCP)
-- **Infrastructure as Code:** Terraform
-- **CI/CD & Deployment:** Google Cloud Build, Skaffold, Cloud Deploy
-- **Containerization:** Docker
+- **Infrastructure:** Terraform, GCP Cloud Run, GCP Secret Manager
+- **CI/CD:** Google Cloud Build, Skaffold
+- **Environment:** Nix (Flakes), Docker/Podman
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
-
-- [Go](https://go.dev/doc/install) (latest version recommended)
+- [Nix](https://nixos.org/download.html) (with flakes enabled)
 - [Google Cloud SDK](https://cloud.google.com/sdk/install)
 - [Terraform](https://developer.hashicorp.com/terraform/downloads)
-- [direnv](https://direnv.net/) (for managing environment variables locally)
 
 ## Getting Started
 
-Follow these steps to get your development environment set up.
+### 1. Development Environment
 
-### 1. Clone the Repository
+This project uses Nix for a consistent development environment. To enter the shell with all dependencies:
 
 ```bash
-git clone <your-repository-url>
-cd dns-scheduler
+nix develop
 ```
 
 ### 2. Configure Environment Variables
 
-This project uses `direnv` to manage environment variables.
+The application expects several environment variables:
 
-1.  **Create/Edit `.envrc`:** Edit the `.envrc` file in the project root and fill in your specific values for `GCP_PROJECT_ID` and any local development secrets.
-2.  **Allow direnv:** Navigate to the project root directory and allow `direnv` to load the environment variables.
-    ```bash
-    direnv allow
-    ```
-    This will load the variables defined in `.envrc` into your shell environment.
+- `NEXT_DNS_API_KEY`: Your NextDNS API key.
+- `NEXT_DNS_PROFILE_ID_0`: The target NextDNS profile ID (0 based indexing, up to N)
+- `DOMAIN_DENY_LIST`: (Optional) Comma-separated list of domains to block when enabled.
+- `DOMAIN_ALLOW_LIST`: (Optional) Comma-separated list of domains to allow when enabled.
+- `PORT`: (Optional) Port to listen on (defaults to 3003).
 
-### 3. Configure GCP Authentication
-
-Log in to the gcloud CLI and set your project.
+### 3. Run Locally
 
 ```bash
-gcloud auth login
-gcloud config set project <your-gcp-project-id>
+cargo run
 ```
 
-### 4. Bootstrap the GCP Environment
+The server will be available at `http://localhost:3003`. Available endpoints:
+- `GET /enable`: Enable specified DNS settings.
+- `GET /disable`: Disable specified DNS settings.
+- `GET /toggle`: Toggle between states.
 
-Before deploying the infrastructure, you must run a one-time bootstrap script. This script prepares the GCP project with the necessary permissions, APIs, and secrets required for the CI/CD pipeline to function. The `GCP_PROJECT_ID` used by this script is sourced from your environment variables (e.g., via `direnv`).
+## Infrastructure & Deployment
 
-Specifically, the script performs the following actions:
-- Enables the Cloud Deploy and Infrastructure Manager APIs.
-- Creates a dedicated service account for the Cloud Build pipeline.
-- Grants the service account the broad set of IAM permissions it needs to manage resources.
-- Establishes a connection to the project's GitLab repository.
-- Creates placeholder secrets in Google Secret Manager.
+### GCP Bootstrapping
 
-Run the script from the root of the repository:
+Before first deployment, run the bootstrap script to prepare the GCP environment. This script requires several environment variables for GitLab integration and project identification:
+
+- `GCP_PROJECT_ID`: The target GCP project ID.
+- `GCP_PROJECT_NAME`: The name for the application (e.g., `dns-scheduler`).
+- `GCP_GITLAB_API_TOKEN_SECRET`: Full resource path to the GitLab API token secret version.
+- `GCP_GITLAB_READ_API_TOKEN_SECRET`: Full resource path to the GitLab read-only API token secret version.
+- `GCP_GITLAB_WEBHOOK_SECRET`: Full resource path to the GitLab webhook secret version.
+
 ```bash
 ./bootstrap-gcp.sh
 ```
-**IMPORTANT**: After the script completes, you must manually populate the created secrets (`NEXTDNS_API_KEY`, `NEXTDNS_PROFILE_ID_0`, etc.) with their actual values using the gcloud CLI as instructed in the script's output.
 
-### 5. Provision Infrastructure
+### Terraform
 
-Once the environment is bootstrapped, you can provision the core GCP resources using Terraform.
+Provision the core infrastructure using Terraform:
 
 ```bash
 cd terraform
@@ -86,31 +94,14 @@ terraform plan
 terraform apply
 ```
 
-### 6. Run the Application
+### Cloud Build
 
-_(Instructions on how to run the Go application locally. You may need to fill this in with more specific details, such as required environment variables.)_
-
-```bash
-# From the root directory
-go run function.go
-```
-
-## Deployment
-
-This project is configured for automated deployments using Google Cloud Build.
-
-- `cloudbuild-app.yaml`\*\*: Builds the Docker image for the Go application and deploys it to Cloud Run.
-- `skaffold.yaml`\*\*: Enables continuous development workflows.
-
-To trigger an application build and deployment, you can run:
+Deploy the application to Cloud Run:
 
 ```bash
-# Example command (update substitutions as needed)
-gcloud builds submit . \
-  --config=cloudbuild-app.yaml \
-  --substitutions=_REPO="dns-scheduler-repo",_IMAGE_NAME="dns-scheduler",_LOCATION="us-central1"
+gcloud builds submit . --config=cloudbuild-app.yaml
 ```
 
 ## Contributing
 
-Contributions are welcome! Please refer to the `GEMINI.md` file in this repository for guidelines on how the AI assistant can help you with development tasks.
+Please follow the guidelines in `GEMINI.md` for AI-assisted development.

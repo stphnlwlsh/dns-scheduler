@@ -90,13 +90,17 @@ gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} \
   --member="serviceAccount:${GCP_BUILDER_SA_EMAIL}" \
   --role="roles/iam.serviceAccountTokenCreator" --condition=None
 
+GCP_GITLAB_API_TOKEN_SECRET=${GCP_GITLAB_API_TOKEN_SECRET:?GCP_GITLAB_API_TOKEN_SECRET not set}
+GCP_GITLAB_READ_API_TOKEN_SECRET=${GCP_GITLAB_READ_API_TOKEN_SECRET:?GCP_GITLAB_READ_API_TOKEN_SECRET not set}
+GCP_GITLAB_WEBHOOK_SECRET=${GCP_GITLAB_WEBHOOK_SECRET:?GCP_GITLAB_WEBHOOK_SECRET not set}
+
 gcloud builds connections create gitlab GitLab \
   --region=us-central1 \
   --project=${GCP_PROJECT_ID} \
   --host-uri=https://gitlab.com \
-  --authorizer-token-secret-version=projects/209433922082/locations/us-central1/secrets/cloudbuild-gitlab-1764712029569-api-access-token/versions/latest \
-  --read-authorizer-token-secret-version=projects/209433922082/locations/us-central1/secrets/cloudbuild-gitlab-1764712029569-read-api-access-token/versions/latest \
-  --webhook-secret-secret-version=projects/209433922082/locations/us-central1/secrets/cloudbuild-gitlab-1764712029569-webhook-secret/versions/latest
+  --authorizer-token-secret-version=${GCP_GITLAB_API_TOKEN_SECRET} \
+  --read-authorizer-token-secret-version=${GCP_GITLAB_READ_API_TOKEN_SECRET} \
+  --webhook-secret-secret-version=${GCP_GITLAB_WEBHOOK_SECRET}
 
 gcloud builds repositories create connectwithawalsh-${GCP_PROJECT_NAME} \
   --remote-uri=https://gitlab.com/connectwithawalsh/${GCP_PROJECT_NAME}.git \

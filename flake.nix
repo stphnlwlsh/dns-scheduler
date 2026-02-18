@@ -22,7 +22,10 @@
         pkgs: envName: envFiles:
         pkgs.mkShell {
           packages = with pkgs; [
-            go
+            rustc
+            cargo
+            rustfmt
+            clippy
             opentofu
           ];
 
@@ -56,8 +59,9 @@
               echo "⚠️  Warning: NEXTDNS_PROFILE_ID_1 is not set"
             fi
 
-            echo "Tools: $(go version | cut -d' ' -f1-3)"
-            echo "Tools: $(tofu version | cut -d' ' -f1-3)"
+            echo "Tools: $(rustc --version)"
+            echo "Tools: $(cargo --version)"
+            echo "Tools: $(tofu version | head -n 1)"
           '';
         };
     in

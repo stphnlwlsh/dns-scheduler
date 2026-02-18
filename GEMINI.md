@@ -24,7 +24,15 @@ This project aims to adhere to the [Twelve-Factor App](https://12factor.net/) me
 
 Please fill in or modify these commands as needed.
 
-### TODO! Rust commands for building, formatting, etc. to be included.
+### Rust
+
+This project uses Rust (2024 edition).
+
+- **Build:** `cargo build`
+- **Run:** `cargo run`
+- **Format:** `cargo fmt`
+- **Lint:** `cargo clippy`
+- **Test:** `cargo test`
 
 ### Terraform
 
