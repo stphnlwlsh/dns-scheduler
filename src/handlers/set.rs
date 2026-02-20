@@ -1,14 +1,19 @@
 use crate::{
     config::YOU_TUBE_DOMAINS,
-    domain::{DnsAction, DnsCategory, DnsError, DnsProvider, ListSetting, ToggleableSetting},
+    domain::{
+        DnsAction, DnsCategory, DnsError, DnsProvider, DnsResponse, ListSetting, ToggleableSetting,
+    },
 };
+use tracing::{Span, instrument};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
+#[instrument(skip(provider))]
 pub fn set_dns_settings(
     provider: &dyn DnsProvider,
     dns_action: DnsAction,
     allow_list: String,
     deny_list: String,
-) -> Result<String, DnsError> {
+) -> Result<DnsResponse, DnsError> {
     let mut summary = Vec::new();
 
     for setting in ToggleableSetting::ALL {
@@ -22,14 +27,32 @@ pub fn set_dns_settings(
         };
 
         match provider.update_setting(&category, &effective_action) {
-            Ok(_) => summary.push(format!(
-                "Successfully applied {:?} to {:?}",
-                effective_action, category
-            )),
-            Err(e) => summary.push(format!(
-                "Failed to apply {:?} to {:?}: {}",
-                effective_action, category, e
-            )),
+            Ok(_) => {
+                Span::current().add_event(
+                    "setting_update_success",
+                    vec![
+                        opentelemetry::KeyValue::new("category", format!("{:?}", category)),
+                        opentelemetry::KeyValue::new("action", format!("{:?}", effective_action)),
+                    ],
+                );
+                summary.push(format!(
+                    "Successfully applied {:?} to {:?}",
+                    effective_action, category
+                ))
+            }
+            Err(e) => {
+                tracing::error!(
+                    category = ?category,
+                    action = ?effective_action,
+                    error = %e,
+                    "FAILED - setting update"
+                );
+
+                summary.push(format!(
+                    "Failed to apply {:?} to {:?}: {}",
+                    effective_action, category, e
+                ))
+            }
         }
     }
 
@@ -52,17 +75,61 @@ pub fn set_dns_settings(
         };
 
         match provider.update_setting(&category, &effective_action) {
-            Ok(_) => summary.push(format!(
-                "Successfully applied {:?} to {:?}",
-                effective_action, category
-            )),
-            Err(e) => summary.push(format!(
-                "Failed to apply {:?} to {:?}: {}",
-                effective_action, category, e
-            )),
+            Ok(_) => {
+                Span::current().add_event(
+                    "setting_update_success",
+                    vec![
+                        opentelemetry::KeyValue::new("category", format!("{:?}", category)),
+                        opentelemetry::KeyValue::new("action", format!("{:?}", effective_action)),
+                    ],
+                );
+                summary.push(format!(
+                    "Successfully applied {:?} to {:?}",
+                    effective_action, category
+                ))
+            }
+            Err(e) => {
+                tracing::error!(
+                    category = ?category,
+                    action = ?effective_action,
+                    error = %e,
+                    "FAILED - setting update"
+                );
+
+                summary.push(format!(
+                    "Failed to apply {:?} to {:?}: {}",
+                    effective_action, category, e
+                ))
+            }
         }
     }
 
-    Ok(summary.join("\n"))
-}
+    let success_count = summary
+        .iter()
+        .filter(|s| s.to_uppercase().starts_with("SUCCESS"))
+        .count();
 
+    let failure_count = summary
+        .iter()
+        .filter(|s| s.to_uppercase().starts_with("FAILED"))
+        .count();
+
+    if failure_count == 0 {
+        tracing::info!(
+            successes = success_count,
+            "SUCCESS - all DNS settings applied"
+        );
+    } else {
+        tracing::warn!(
+            successes = success_count,
+            failures = failure_count,
+            "PARTIAL SUCCESS - some DNS settings failed"
+        );
+    }
+
+    Ok(DnsResponse {
+        message: summary.join("\n"),
+        success_count,
+        failure_count,
+    })
+}

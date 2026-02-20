@@ -5,9 +5,12 @@ metadata:
 spec:
   template:
     spec:
+      timeoutSeconds: 300
       serviceAccountName: "dns-scheduler-app@default.iam.gserviceaccount.com" # from-param: ${service_account_email}
       containers:
         - image: dns-scheduler
+          ports:
+            - containerPort: 8080
           env:
             - name: NEXTDNS_API_KEY
               valueFrom:
@@ -28,3 +31,21 @@ spec:
               value: "" # from-param: ${domain_deny_list}
             - name: DOMAIN_ALLOW_LIST
               value: "" # from-param: ${domain_allow_list}
+            - name: ENVIRONMENT
+              value: "prod"
+            - name: GOOGLE_CLOUD_PROJECT
+              value: "" # from-param: ${project_id}
+        - name: otel-collector
+          image: us-docker.pkg.dev/cloud-ops-agents-artifacts/google-cloud-opentelemetry-collector/otelcol-google:0.143.0
+          args:
+            - "--config=/etc/otelcol-google/config.yaml"
+          volumeMounts:
+            - name: otel-config
+              mountPath: /etc/otelcol-google
+      volumes:
+        - name: otel-config
+          secret:
+            secretName: OTEL_COLLECTOR_CONFIG
+            items:
+              - key: latest
+                path: config.yaml

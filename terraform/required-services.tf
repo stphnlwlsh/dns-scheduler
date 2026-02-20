@@ -31,6 +31,14 @@ resource "google_project_service" "logging" {
   service = "logging.googleapis.com"
 }
 
+resource "google_project_service" "monitoring" {
+  service = "monitoring.googleapis.com"
+}
+
+resource "google_project_service" "trace" {
+  service = "cloudtrace.googleapis.com"
+}
+
 resource "google_project_service" "pubsub" {
   service = "pubsub.googleapis.com"
 }

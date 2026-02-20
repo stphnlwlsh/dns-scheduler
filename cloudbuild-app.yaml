@@ -74,7 +74,7 @@ steps:
       - "--region=${LOCATION}"
       - "--to-target=prod"
       - "--images=${_IMAGE_NAME}=${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}"
-      - "--deploy-parameters=service_account_email=${_IMAGE_NAME}-app@${PROJECT_ID}.iam.gserviceaccount.com,domain_deny_list=${_DOMAIN_DENY_LIST},domain_allow_list=${_DOMAIN_ALLOW_LIST}"
+      - "--deploy-parameters=service_account_email=${_IMAGE_NAME}-app@${PROJECT_ID}.iam.gserviceaccount.com,domain_deny_list=${_DOMAIN_DENY_LIST},domain_allow_list=${_DOMAIN_ALLOW_LIST},project_id=${PROJECT_ID}"
 
 images:
   - "${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/${_IMAGE_NAME}:${SHORT_SHA}"

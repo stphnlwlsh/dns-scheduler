@@ -5,6 +5,16 @@ resource "google_service_account" "app" {
   project      = var.project_id
 }
 
+data "google_project" "project" {
+  project_id = var.project_id
+}
+
+resource "google_project_iam_member" "cloud_run_agent_art_reader" {
+  project = var.project_id
+  role    = "roles/artifactregistry.reader"
+  member  = "serviceAccount:service-${data.google_project.project.number}@serverless-robot-prod.iam.gserviceaccount.com"
+}
+
 resource "google_service_account" "builder" {
   account_id                   = "${var.app_name}-builder"
   display_name                 = "${var.app_name_friendly} Builder"
@@ -31,7 +41,7 @@ resource "google_project_iam_member" "app_roles" {
   for_each = toset(local.app_roles)
 
   project = var.project_id
-  role    = "roles/secretmanager.secretAccessor"
+  role    = each.value
   member  = "serviceAccount:${google_service_account.app.email}"
 }
 
@@ -61,7 +71,9 @@ resource "google_project_iam_member" "invoker_roles" {
 
 locals {
   app_roles = [
-    "roles/secretmanager.secretAccessor"
+    "roles/secretmanager.secretAccessor",
+    "roles/cloudtrace.agent",
+    "roles/monitoring.metricWriter",
   ]
 }
 

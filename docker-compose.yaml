@@ -1,0 +1,24 @@
+services:
+  # Your Rust Application
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=debug
+      - ENVIRONMENT=prod # Triggers OTLP logic in main.rs
+      - GOOGLE_CLOUD_PROJECT=${GCP_PROJECT_ID}
+      - NEXTDNS_API_KEY=${NEXTDNS_API_KEY}
+      - NEXTDNS_PROFILE_ID_0=${NEXTDNS_PROFILE_ID_0}
+      - NEXTDNS_PROFILE_ID_1=${NEXTDNS_PROFILE_ID_1}
+      - PORT=8080
+
+  # The OpenTelemetry Collector Sidecar
+  otel-collector:
+    image: us-docker.pkg.dev/cloud-ops-agents-artifacts/google-cloud-opentelemetry-collector/otelcol-google:0.143.0
+    command: ["--config=/etc/otelcol-google/config.yaml"]
+    network_mode: "service:app"
+    volumes:
+      - ./otel-config.yaml:/etc/otelcol-google/config.yaml:ro
+    environment:
+      - GOOGLE_CLOUD_PROJECT=${GCP_PROJECT_ID}

@@ -1,12 +1,29 @@
+resource "google_secret_manager_secret" "otel_config" {
+  secret_id = "OTEL_COLLECTOR_CONFIG"
+  project   = var.project_id
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret_version" "otel_config" {
+  secret      = google_secret_manager_secret.otel_config.id
+  secret_data = file("${path.module}/../otel-config.yaml")
+}
+
 resource "google_cloud_run_v2_service" "default" {
   name     = var.app_name
   location = var.location
   project  = var.project_id
 
   template {
+    timeout         = "300s"
     service_account = google_service_account.app.email
     containers {
       image = "${var.location}-docker.pkg.dev/${var.project_id}/${var.app_name}-repo/${var.app_name}:${var.image_tag}"
+      ports {
+        container_port = 8080
+      }
       env {
         name = "NEXTDNS_API_KEY"
         value_source {
@@ -41,6 +58,33 @@ resource "google_cloud_run_v2_service" "default" {
       env {
         name  = "DOMAIN_ALLOW_LIST"
         value = var.domain_allow_list
+      }
+      env {
+        name  = "ENVIRONMENT"
+        value = var.environment
+      }
+      env {
+        name  = "GOOGLE_CLOUD_PROJECT"
+        value = var.project_id
+      }
+    }
+    containers {
+      name  = "otel-collector"
+      image = "us-docker.pkg.dev/cloud-ops-agents-artifacts/google-cloud-opentelemetry-collector/otelcol-google:0.143.0"
+      args  = ["--config=/etc/otelcol-google/config.yaml"]
+      volume_mounts {
+        name       = "otel-config"
+        mount_path = "/etc/otelcol-google"
+      }
+    }
+    volumes {
+      name = "otel-config"
+      secret {
+        secret = google_secret_manager_secret.otel_config.secret_id
+        items {
+          version = "latest"
+          path    = "config.yaml"
+        }
       }
     }
   }

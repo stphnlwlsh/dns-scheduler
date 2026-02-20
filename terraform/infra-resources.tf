@@ -43,6 +43,8 @@ resource "google_cloudbuild_trigger" "main_trigger" {
     _DOMAIN_ALLOW_LIST = var.domain_allow_list
   }
 
+  ignored_files = ["terraform/**"]
+
   repository_event_config {
     repository = "projects/${var.project_id}/locations/${var.location}/connections/GitLab/repositories/connectwithawalsh-${var.app_name}"
     push {

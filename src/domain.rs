@@ -66,6 +66,13 @@ pub enum DnsError {
     Parse(String, String),
 }
 
+#[derive(Debug, Clone)]
+pub struct DnsResponse {
+    pub message: String,
+    pub success_count: usize,
+    pub failure_count: usize,
+}
+
 pub trait DnsProvider {
     fn update_setting(&self, category: &DnsCategory, action: &DnsAction) -> Result<(), DnsError>;
 

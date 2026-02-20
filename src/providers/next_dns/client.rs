@@ -18,7 +18,7 @@ impl NextDNSClient {
             Err(value) => return value,
         };
 
-        let client = reqwest::blocking::Client::new();
+        let client = reqwest::blocking::Client::builder().build()?;
 
         Ok(Self {
             api_key,
@@ -27,6 +27,7 @@ impl NextDNSClient {
         })
     }
 
+    #[tracing::instrument(skip(self), err)]
     fn get_current_domain_list(
         &self,
         profile_id: &String,
@@ -69,6 +70,7 @@ fn parse_api_key() -> Result<String, DnsError> {
 }
 
 impl DnsProvider for NextDNSClient {
+    #[tracing::instrument(skip(self), err)]
     fn update_setting(&self, category: &DnsCategory, action: &DnsAction) -> Result<(), DnsError> {
         self.profile_ids.first().ok_or_else(|| {
             DnsError::Config(
@@ -142,6 +144,7 @@ impl DnsProvider for NextDNSClient {
         Ok(())
     }
 
+    #[tracing::instrument(skip(self), err)]
     fn get_status(&self, category: &DnsCategory) -> Result<bool, DnsError> {
         let url = format!(
             "{}/profiles/{}/parentalControl",

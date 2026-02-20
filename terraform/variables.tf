@@ -39,3 +39,9 @@ variable "domain_allow_list" {
   type        = string
   default     = ""
 }
+
+variable "environment" {
+  description = "The environment (e.g. prod, dev)"
+  type        = string
+  default     = "prod"
+}
