@@ -24,6 +24,7 @@ impl ListSetting {
         match self {
             ListSetting::AllowList(_) => "allowlist",
             ListSetting::DenyList(_) => "denylist",
+            ListSetting::PanicDomains(_) => "denylist",
             ListSetting::YoutubeDomains(_) => "denylist",
         }
     }
