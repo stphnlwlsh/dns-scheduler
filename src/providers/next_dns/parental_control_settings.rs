@@ -44,7 +44,7 @@ impl ParentalControlSettings {
             }
             ToggleableSetting::BlockByPass => self.block_bypass,
             ToggleableSetting::SafeSearch => self.safe_search,
-            ToggleableSetting::PanicMode => todo!(),
+            ToggleableSetting::PanicMode => false,
             ToggleableSetting::YoutubeRestrictedMode => self.youtube_restricted_mode,
         }
     }
