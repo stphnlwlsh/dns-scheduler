@@ -1,10 +1,13 @@
+use std::future::Future;
+
 #[derive(Clone, Copy, Debug)]
 pub enum DnsAction {
-    Enable,
-    Disable,
-    Toggle,
     Add,
+    Disable,
+    Enable,
+    Panic,
     Remove,
+    Toggle,
 }
 
 #[derive(Clone, Debug)]
@@ -37,13 +40,17 @@ impl ToggleableSetting {
 pub enum ListSetting {
     AllowList(String),
     DenyList(String),
+    PanicDomains(String),
     YoutubeDomains(String),
 }
 
 impl ListSetting {
     pub fn domains(&self) -> &str {
         match &self {
-            Self::AllowList(d) | Self::DenyList(d) | Self::YoutubeDomains(d) => d,
+            Self::AllowList(d)
+            | Self::DenyList(d)
+            | Self::PanicDomains(d)
+            | Self::YoutubeDomains(d) => d,
         }
     }
 }
@@ -74,7 +81,16 @@ pub struct DnsResponse {
 }
 
 pub trait DnsProvider {
-    fn update_setting(&self, category: &DnsCategory, action: &DnsAction) -> Result<(), DnsError>;
+    fn update_setting(
+        &self,
+        category: &DnsCategory,
+        action: &DnsAction,
+        profile_id_override: Option<&str>,
+    ) -> impl Future<Output = Result<(), DnsError>> + Send;
 
-    fn get_status(&self, category: &DnsCategory) -> Result<bool, DnsError>;
+    fn get_status(
+        &self,
+        category: &DnsCategory,
+        profile_id_override: Option<&str>,
+    ) -> impl Future<Output = Result<bool, DnsError>> + Send;
 }
