@@ -4,6 +4,7 @@ use opentelemetry::global::{self};
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::Resource;
+use std::sync::Arc;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -14,10 +15,10 @@ async fn main() {
 
     let port = std::env::var("PORT").unwrap_or_else(|_| "3003".to_string());
     let addr = format!("0.0.0.0:{}", port);
-    let server = tiny_http::Server::http(addr).unwrap();
+    let server = Arc::new(tiny_http::Server::http(addr).unwrap());
 
     let provider = match dns_scheduler::providers::next_dns::client::NextDNSClient::new() {
-        Ok(p) => p,
+        Ok(p) => Arc::new(p),
         Err(e) => {
             eprintln!("CRITICAL ERROR: Failed to create DNS client: {}", e);
             std::process::exit(1);
@@ -27,39 +28,105 @@ async fn main() {
     let deny_list = std::env::var("DOMAIN_DENY_LIST").unwrap_or_default();
     let allow_list = std::env::var("DOMAIN_ALLOW_LIST").unwrap_or_default();
 
-    for request in server.incoming_requests() {
-        match (request.method(), request.url()) {
-            (&tiny_http::Method::Get, "/enable") => handle_request(request, || {
-                dns_scheduler::handlers::set::set_dns_settings(
-                    &provider,
-                    DnsAction::Enable,
-                    allow_list.clone(),
-                    deny_list.clone(),
-                )
-            }),
-            (&tiny_http::Method::Get, "/disable") => handle_request(request, || {
-                dns_scheduler::handlers::set::set_dns_settings(
-                    &provider,
-                    DnsAction::Disable,
-                    allow_list.clone(),
-                    deny_list.clone(),
-                )
-            }),
-            (&tiny_http::Method::Get, "/toggle") => handle_request(request, || {
-                dns_scheduler::handlers::toggle::toggle_dns_settings(&provider)
-            }),
-            _ => handle_request(request, || {
-                Err(dns_scheduler::domain::DnsError::NotImplemented(
-                    "Endpoint not implemented".to_string(),
-                ))
-            }),
-        }
+    println!("Server listening on port {}", port);
+
+    loop {
+        let request = match server.recv() {
+            Ok(rq) => rq,
+            Err(e) => {
+                eprintln!("Error receiving request: {}", e);
+                break;
+            }
+        };
+
+        let provider = Arc::clone(&provider);
+        let allow_list = allow_list.clone();
+        let deny_list = deny_list.clone();
+
+        tokio::spawn(async move {
+            let url = request.url().to_string();
+            let path_parts: Vec<&str> = url.split('/').filter(|s| !s.is_empty()).collect();
+
+            if path_parts.is_empty() {
+                handle_request(request, async {
+                    Err(dns_scheduler::domain::DnsError::NotImplemented(
+                        "Root not implemented".to_string(),
+                    ))
+                })
+                .await;
+                return;
+            }
+
+            let action_path = path_parts[0];
+            let profile_id = path_parts.get(1).map(|s| s.to_string());
+
+            match (request.method(), action_path) {
+                (&tiny_http::Method::Get, "enable") => {
+                    handle_request(request, async {
+                        dns_scheduler::handlers::set::set_dns_settings(
+                            provider.as_ref(),
+                            DnsAction::Enable,
+                            allow_list,
+                            deny_list,
+                            profile_id,
+                        )
+                        .await
+                    })
+                    .await
+                }
+                (&tiny_http::Method::Get, "disable") => {
+                    handle_request(request, async {
+                        dns_scheduler::handlers::set::set_dns_settings(
+                            provider.as_ref(),
+                            DnsAction::Disable,
+                            allow_list,
+                            deny_list,
+                            profile_id,
+                        )
+                        .await
+                    })
+                    .await
+                }
+                (&tiny_http::Method::Get, "panic") => {
+                    handle_request(request, async {
+                        dns_scheduler::handlers::set::set_dns_settings(
+                            provider.as_ref(),
+                            DnsAction::Panic,
+                            allow_list,
+                            deny_list,
+                            profile_id,
+                        )
+                        .await
+                    })
+                    .await
+                }
+                (&tiny_http::Method::Get, "toggle") => {
+                    handle_request(request, async {
+                        dns_scheduler::handlers::toggle::toggle_dns_settings(
+                            provider.as_ref(),
+                            profile_id,
+                        )
+                        .await
+                    })
+                    .await
+                }
+                _ => {
+                    handle_request(request, async {
+                        Err(dns_scheduler::domain::DnsError::NotImplemented(format!(
+                            "Endpoint '{}' not implemented",
+                            action_path
+                        )))
+                    })
+                    .await
+                }
+            }
+        });
     }
 }
 
-fn handle_request<F>(request: tiny_http::Request, logic: F)
+async fn handle_request<F>(request: tiny_http::Request, logic: F)
 where
-    F: FnOnce() -> Result<DnsResponse, dns_scheduler::domain::DnsError>,
+    F: std::future::Future<Output = Result<DnsResponse, dns_scheduler::domain::DnsError>>,
 {
     let parent_cx = global::get_text_map_propagator(|propagator| {
         propagator.extract(&dns_scheduler::HeaderExtractor(&request))
@@ -75,9 +142,10 @@ where
         tracing::warn!(error = %e, "Failed to link to parent trace context; starting fresh trace");
     }
 
-    let _guard = span.enter();
-
-    let result = logic();
+    let result = {
+        let _guard = span.enter();
+        logic.await
+    };
 
     let response = match result {
         Ok(dns_response) => {
@@ -108,7 +176,6 @@ where
 
 async fn init_tracing() {
     let env = std::env::var("ENVIRONMENT").unwrap_or_else(|_| "dev".to_string());
-    let _rt_guard = tokio::runtime::Handle::current().enter();
 
     let resource = Resource::builder()
         .with_attributes(vec![
@@ -136,10 +203,11 @@ async fn init_tracing() {
             .with_batch_exporter(exporter)
             .build()
     } else {
+        let exporter = opentelemetry_stdout::SpanExporter::default();
         opentelemetry_sdk::trace::SdkTracerProvider::builder()
             .with_resource(resource.clone())
             .with_sampler(sampler)
-            .with_simple_exporter(opentelemetry_stdout::SpanExporter::default())
+            .with_simple_exporter(exporter)
             .build()
     };
 
