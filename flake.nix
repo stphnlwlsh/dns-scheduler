@@ -6,7 +6,10 @@
   };
 
   outputs =
-    { self, nixpkgs }:
+    {
+      self,
+      nixpkgs,
+    }:
     let
       supportedSystems = [
         "x86_64-darwin"
@@ -21,13 +24,7 @@
       mkEnvShell =
         pkgs: envName: envFiles:
         pkgs.mkShell {
-          packages = with pkgs; [
-            rustc
-            cargo
-            rustfmt
-            clippy
-            opentofu
-          ];
+          packages = [ ];
 
           shellHook = ''
             echo "❄️ Entering Nix environment: ${envName}"
@@ -45,6 +42,14 @@
             # Validation logic
             if [ -z "$GCP_PROJECT_ID" ]; then
               echo "⚠️  Warning: GCP_PROJECT_ID is not set"
+            fi
+
+            if [ -z "$GCP_PROJECT_NAME" ]; then
+              echo "⚠️  Warning: GCP_PROJECT_NAME is not set"
+            fi
+
+            if [ -z "$GCP_PROJECT_PIPELINE" ]; then
+              echo "⚠️  Warning: GCP_PROJECT_PIPELINE is not set"
             fi
 
             if [ -z "$NEXTDNS_API_KEY" ]; then

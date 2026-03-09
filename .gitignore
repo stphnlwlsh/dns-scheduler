@@ -45,6 +45,7 @@ Thumbs.db
 .envrc
 
 # Local development
+.env_current
 .env_*.env
 !.env_common.env
 
@@ -55,3 +56,5 @@ Thumbs.db
 /result
 /nextdns.json
 
+.env
+/.direnv
