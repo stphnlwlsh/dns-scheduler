@@ -6,7 +6,7 @@ use std::collections::HashSet;
 pub struct NextDNSClient {
     api_key: String,
     profile_ids: Vec<String>,
-    client: reqwest::blocking::Client,
+    client: reqwest::Client,
 }
 
 impl NextDNSClient {
@@ -18,7 +18,7 @@ impl NextDNSClient {
             Err(value) => return value,
         };
 
-        let client = reqwest::blocking::Client::builder().build()?;
+        let client = reqwest::Client::builder().build()?;
 
         Ok(Self {
             api_key,
@@ -28,9 +28,9 @@ impl NextDNSClient {
     }
 
     #[tracing::instrument(skip(self), err)]
-    fn get_current_domain_list(
+    async fn get_current_domain_list(
         &self,
-        profile_id: &String,
+        profile_id: &str,
         list_path: &str,
     ) -> Result<(String, Vec<NextDNSEntry>), DnsError> {
         let url = format!("{}/profiles/{}/{}", NEXT_DNS_API_URL, profile_id, list_path);
@@ -38,9 +38,11 @@ impl NextDNSClient {
             .client
             .get(&url)
             .header("x-api-key", &self.api_key)
-            .send()?
+            .send()
+            .await?
             .error_for_status()?
-            .json()?;
+            .json()
+            .await?;
 
         Ok((url, current_domain_list.data))
     }
@@ -71,15 +73,26 @@ fn parse_api_key() -> Result<String, DnsError> {
 
 impl DnsProvider for NextDNSClient {
     #[tracing::instrument(skip(self), err)]
-    fn update_setting(&self, category: &DnsCategory, action: &DnsAction) -> Result<(), DnsError> {
-        self.profile_ids.first().ok_or_else(|| {
-            DnsError::Config(
-                "Must have at least one profile id".into(),
-                String::from("NEXT_DNS_PROFILE_ID_"),
-            )
-        })?;
+    async fn update_setting(
+        &self,
+        category: &DnsCategory,
+        action: &DnsAction,
+        profile_id_override: Option<&str>,
+    ) -> Result<(), DnsError> {
+        let profiles_to_update = if let Some(id) = profile_id_override {
+            vec![id.to_string()]
+        } else {
+            self.profile_ids.clone()
+        };
 
-        for profile_id in &self.profile_ids {
+        if profiles_to_update.is_empty() {
+            return Err(DnsError::Config(
+                "No profile ids found to update".into(),
+                String::from("NEXT_DNS_PROFILE_ID_"),
+            ));
+        }
+
+        for profile_id in &profiles_to_update {
             match category {
                 DnsCategory::Toggle(setting) => {
                     let active = matches!(action, DnsAction::Enable);
@@ -106,14 +119,15 @@ impl DnsProvider for NextDNSClient {
                         .patch(url)
                         .header("x-api-key", &self.api_key)
                         .json(&body)
-                        .send()?
+                        .send()
+                        .await?
                         .error_for_status()?;
                 }
                 DnsCategory::List(setting) => {
                     let list_path = setting.to_id();
 
                     let (url, current_domains) =
-                        self.get_current_domain_list(profile_id, list_path)?;
+                        self.get_current_domain_list(profile_id, list_path).await?;
 
                     let local_domains_csv = setting.domains();
 
@@ -136,7 +150,8 @@ impl DnsProvider for NextDNSClient {
                         .put(url)
                         .header("x-api-key", &self.api_key)
                         .json(&body)
-                        .send()?
+                        .send()
+                        .await?
                         .error_for_status()?;
                 }
             }
@@ -145,24 +160,36 @@ impl DnsProvider for NextDNSClient {
     }
 
     #[tracing::instrument(skip(self), err)]
-    fn get_status(&self, category: &DnsCategory) -> Result<bool, DnsError> {
+    async fn get_status(
+        &self,
+        category: &DnsCategory,
+        profile_id_override: Option<&str>,
+    ) -> Result<bool, DnsError> {
+        let target_profile_id = if let Some(id) = profile_id_override {
+            id
+        } else {
+            self.profile_ids.first().ok_or_else(|| {
+                DnsError::Config(
+                    "Must have at least one profile id".into(),
+                    String::from("NEXT_DNS_PROFILE_ID_"),
+                )
+            })?
+        };
+
         let url = format!(
             "{}/profiles/{}/parentalControl",
-            NEXT_DNS_API_URL,
-            self.profile_ids.first().ok_or_else(|| DnsError::Config(
-                "Must have at least one profile id".into(),
-                String::from("NEXT_DNS_PROFILE_ID_")
-            ))?
+            NEXT_DNS_API_URL, target_profile_id
         );
 
         let response = self
             .client
             .get(url)
             .header("x-api-key", &self.api_key)
-            .send()?
+            .send()
+            .await?
             .error_for_status()?;
 
-        let text = response.text()?;
+        let text = response.text().await?;
 
         let response: super::parental_control_settings::NextDNSResponse =
             serde_json::from_str(&text).map_err(|e| DnsError::Parse(e.to_string(), text))?;
