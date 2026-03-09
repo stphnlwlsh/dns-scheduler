@@ -5,13 +5,17 @@ use tracing::{Span, instrument};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 #[instrument(skip(provider))]
-pub fn toggle_dns_settings(provider: &dyn DnsProvider) -> Result<DnsResponse, DnsError> {
+pub async fn toggle_dns_settings(
+    provider: &impl DnsProvider,
+    profile_id_override: Option<String>,
+) -> Result<DnsResponse, DnsError> {
     let mut summary = Vec::new();
+    let profile_ref = profile_id_override.as_deref();
 
     for setting in ToggleableSetting::ALL {
         let category = DnsCategory::Toggle(setting);
 
-        let is_active = provider.get_status(&category)?;
+        let is_active = provider.get_status(&category, profile_ref).await?;
 
         let effective_action = if is_active {
             DnsAction::Disable
@@ -19,7 +23,10 @@ pub fn toggle_dns_settings(provider: &dyn DnsProvider) -> Result<DnsResponse, Dn
             DnsAction::Enable
         };
 
-        match provider.update_setting(&category, &effective_action) {
+        match provider
+            .update_setting(&category, &effective_action, profile_ref)
+            .await
+        {
             Ok(_) => {
                 Span::current().add_event(
                     "setting_update_success",
