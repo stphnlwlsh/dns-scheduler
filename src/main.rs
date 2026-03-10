@@ -61,6 +61,14 @@ async fn main() {
             let profile_id = path_parts.get(1).map(|s| s.to_string());
 
             match (request.method(), action_path) {
+                (&tiny_http::Method::Get, "health") => {
+                    request
+                        .respond(
+                            tiny_http::Response::from_string("OK")
+                                .with_status_code(200),
+                        )
+                        .unwrap();
+                }
                 (&tiny_http::Method::Get, "enable") => {
                     handle_request(request, async {
                         dns_scheduler::handlers::set::set_dns_settings(
