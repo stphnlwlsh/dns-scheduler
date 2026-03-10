@@ -12,13 +12,11 @@ pub struct NextDNSClient {
 impl NextDNSClient {
     pub fn new() -> Result<Self, DnsError> {
         let api_key = parse_api_key()?;
+        let profile_ids = parse_profile_ids()?;
 
-        let profile_ids = match parse_profile_ids() {
-            Ok(value) => value,
-            Err(value) => return value,
-        };
-
-        let client = reqwest::Client::builder().build()?;
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .build()?;
 
         Ok(Self {
             api_key,
@@ -48,17 +46,17 @@ impl NextDNSClient {
     }
 }
 
-fn parse_profile_ids() -> Result<Vec<String>, Result<NextDNSClient, DnsError>> {
+fn parse_profile_ids() -> Result<Vec<String>, DnsError> {
     let profile_ids: Vec<String> = (0..2)
         .filter_map(|i| std::env::var(format!("NEXTDNS_PROFILE_ID_{}", i)).ok())
         .filter(|id| !id.trim().is_empty())
         .collect();
 
     if profile_ids.is_empty() {
-        return Err(Err(DnsError::Config(
+        return Err(DnsError::Config(
             "Must have at least one profile id".to_string(),
             String::from("NEXTDNS_PROFILE_ID_{}"),
-        )));
+        ));
     }
     Ok(profile_ids)
 }
