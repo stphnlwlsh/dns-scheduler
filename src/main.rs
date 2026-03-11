@@ -5,6 +5,8 @@ use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::Resource;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::signal;
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -28,14 +30,31 @@ async fn main() {
     let deny_list = std::env::var("DOMAIN_DENY_LIST").unwrap_or_default();
     let allow_list = std::env::var("DOMAIN_ALLOW_LIST").unwrap_or_default();
 
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let shutdown_clone = shutdown.clone();
+
     println!("Server listening on port {}", port);
 
+    tokio::spawn(async move {
+        signal::ctrl_c().await.expect("Failed to listen for ctrl-c");
+        tracing::info!("Shutdown signal received, stopping server...");
+        shutdown_clone.store(true, Ordering::SeqCst);
+    });
+
     loop {
-        let request = match server.recv() {
-            Ok(rq) => rq,
+        if shutdown.load(Ordering::SeqCst) {
+            break;
+        }
+
+        let request = match server.recv_timeout(std::time::Duration::from_millis(500)) {
+            Ok(Some(rq)) => rq,
+            Ok(None) => continue,
             Err(e) => {
-                eprintln!("Error receiving request: {}", e);
-                break;
+                tracing::debug!("Server recv: {}", e);
+                if shutdown.load(Ordering::SeqCst) {
+                    break;
+                }
+                continue;
             }
         };
 
@@ -130,6 +149,8 @@ async fn main() {
             }
         });
     }
+
+    tracing::info!("Server shutdown complete");
 }
 
 async fn handle_request<F>(request: tiny_http::Request, logic: F)
