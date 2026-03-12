@@ -43,7 +43,11 @@ The DNS Scheduler provides a lightweight HTTP interface to automate NextDNS oper
 This project uses Nix for a consistent development environment. To enter the shell with all dependencies:
 
 ```bash
+# Local development (default)
 nix develop
+
+# Production environment
+nix develop .#prod
 ```
 
 ### 2. Configure Environment Variables
@@ -56,16 +60,56 @@ The application expects several environment variables:
 - `DOMAIN_ALLOW_LIST`: (Optional) Comma-separated list of domains to allow when enabled.
 - `PORT`: (Optional) Port to listen on (defaults to 3003).
 
+Environment files are located in:
+- `.env_common.env` - Shared variables
+- `.env_local.env` - Local development
+- `.env_prod.env` - Production
+
 ### 3. Run Locally
 
 ```bash
+# Using just (loads env files automatically)
+just run
+
+# Or with cargo directly
 cargo run
+
+# With OTel collector (for tracing)
+just up
 ```
 
 The server will be available at `http://localhost:3003`. Available endpoints:
 - `GET /enable`: Enable specified DNS settings.
 - `GET /disable`: Disable specified DNS settings.
 - `GET /toggle`: Toggle between states.
+- `GET /panic`: Enable panic mode (blocks all but essential domains).
+- `GET /health`: Health check endpoint.
+
+## Development Commands
+
+```bash
+# Check code without building
+cargo check
+
+# Build the project
+cargo build
+
+# Run clippy for linting
+cargo clippy -- -D warnings
+
+# Format code
+cargo fmt
+
+# Run all tests
+cargo test
+
+# Run a specific test
+cargo test test_name
+```
+
+## Contributing
+
+See [AGENTS.md](./AGENTS.md) for detailed code style guidelines and development conventions.
 
 ## Infrastructure & Deployment
 
@@ -101,7 +145,3 @@ Deploy the application to Cloud Run:
 ```bash
 gcloud builds submit . --config=cloudbuild-app.yaml
 ```
-
-## Contributing
-
-Please follow the guidelines in `GEMINI.md` for AI-assisted development.
