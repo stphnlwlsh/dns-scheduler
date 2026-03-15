@@ -83,6 +83,7 @@ locals {
     "roles/artifactregistry.writer",
     "roles/clouddeploy.operator",
     "roles/config.agent",
+    "roles/run.admin",
     "roles/run.developer",
     "roles/run.serviceAgent",
     "roles/cloudscheduler.admin",

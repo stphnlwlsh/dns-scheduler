@@ -82,10 +82,7 @@ async fn main() {
             match (request.method(), action_path) {
                 (&tiny_http::Method::Get, "health") => {
                     request
-                        .respond(
-                            tiny_http::Response::from_string("OK")
-                                .with_status_code(200),
-                        )
+                        .respond(tiny_http::Response::from_string("OK").with_status_code(200))
                         .unwrap();
                 }
                 (&tiny_http::Method::Get, "enable") => {
